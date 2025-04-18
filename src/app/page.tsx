@@ -558,71 +558,45 @@ export default function Home() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 모임 장소
               </label>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="장소를 검색하거나 지도에서 선택하세요"
-                    value={selectedLocation?.name || ''}
-                    readOnly
-                  />
-                  {selectedMember === HOST_NAME ? (
-                    <div className="flex gap-2 max-w-full overflow-x-auto">
-                      <button 
-                        className="min-w-fit px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm"
-                        onClick={() => {
-                          setCurrentMapType('kakao');
-                          setMapModalOpen(true);
-                        }}
-                      >
-                        카카오맵
-                      </button>
-                      <button 
-                        className="min-w-fit px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-                        onClick={() => {
-                          setCurrentMapType('naver');
-                          setMapModalOpen(true);
-                        }}
-                      >
-                        네이버맵
-                      </button>
-                    </div>
-                  ) : selectedLocation && (
-                    <div className="flex gap-2 max-w-full overflow-x-auto">
-                      {selectedLocation.kakaoLink && (
-                        <a
-                          href={selectedLocation.kakaoLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="min-w-fit px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center text-sm"
-                        >
-                          카카오맵으로 보기
-                        </a>
-                      )}
-                      {selectedLocation.naverLink && (
-                        <a
-                          href={selectedLocation.naverLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="min-w-fit px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-center text-sm"
-                        >
-                          네이버맵으로 보기
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedLocation && selectedMember === HOST_NAME && (
-                  <div className="flex gap-2 text-sm">
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="장소를 검색하거나 지도에서 선택하세요"
+                  value={selectedLocation?.name || ''}
+                  readOnly
+                />
+                {selectedMember === HOST_NAME ? (
+                  <div className="flex gap-2">
+                    <button 
+                      className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm"
+                      onClick={() => {
+                        setCurrentMapType('kakao');
+                        setMapModalOpen(true);
+                      }}
+                    >
+                      카카오맵
+                    </button>
+                    <button 
+                      className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                      onClick={() => {
+                        setCurrentMapType('naver');
+                        setMapModalOpen(true);
+                      }}
+                    >
+                      네이버맵
+                    </button>
+                  </div>
+                ) : selectedLocation && (
+                  <div className="flex gap-2">
                     {selectedLocation.kakaoLink && (
                       <a
                         href={selectedLocation.kakaoLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-yellow-600 hover:underline"
+                        className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center text-sm"
                       >
-                        카카오맵에서 보기
+                        카카오맵으로 보기
                       </a>
                     )}
                     {selectedLocation.naverLink && (
@@ -630,9 +604,9 @@ export default function Home() {
                         href={selectedLocation.naverLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-green-600 hover:underline"
+                        className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-center text-sm"
                       >
-                        네이버맵에서 보기
+                        네이버맵으로 보기
                       </a>
                     )}
                   </div>
