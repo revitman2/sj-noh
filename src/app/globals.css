@@ -24,3 +24,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 모바일 가독성 향상을 위한 스타일 */
+@media screen and (max-width: 768px) {
+  body {
+    color: #000000; /* 기본 텍스트 색상 강화 */
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #000000; /* 제목 색상 강화 */
+    font-weight: 600;
+  }
+  
+  label, p, span, a, button {
+    color: inherit;
+  }
+  
+  .text-gray-500, .text-gray-600, .text-gray-700 {
+    color: #444444 !important; /* 회색 텍스트 강화 */
+  }
+  
+  input, select, textarea {
+    color: #000000;
+    border-color: #999999;
+  }
+  
+  table th, table td {
+    color: #000000;
+  }
+}

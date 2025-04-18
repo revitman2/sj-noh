@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { MEMBERS, HOST_NAME } from '@/constants/members';
 import MapModal from '@/components/MapModal';
 import { saveToLocal, loadFromLocal, saveToServer, loadFromServer } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 
 interface DateOption {
   id: string;
@@ -446,6 +447,71 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 text-center">삶의 질 동기모임</h1>
         
+        {/* 디버깅 정보 (호스트만 볼 수 있음) */}
+        {selectedMember === HOST_NAME && (
+          <div className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-yellow-500">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <span>디버깅 정보</span>
+              <button
+                className="ml-auto text-sm px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.from('meeting_data').select().limit(1);
+                    alert(`Supabase 연결 테스트: ${error ? '실패' : '성공'}\n${error ? error.message : JSON.stringify(data)}`);
+                  } catch (e) {
+                    alert(`Supabase 연결 에러: ${e.message}`);
+                  }
+                }}
+              >
+                연결 테스트
+              </button>
+            </h2>
+            <div className="text-sm space-y-2">
+              <p>
+                <strong>Supabase URL:</strong> {process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '설정 안됨'}
+              </p>
+              <p>
+                <strong>Supabase Key:</strong> {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '설정 안됨'}
+              </p>
+              <p>
+                <strong>데이터 저장:</strong> 
+                <button
+                  className="ml-2 text-xs px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded"
+                  onClick={() => {
+                    const data = {
+                      dateOptions,
+                      timeOptions,
+                      votes,
+                      duesPayments,
+                      expenses,
+                      selectedLocation,
+                      _debug: new Date().toISOString()
+                    };
+                    saveToServer(data)
+                      .then(success => alert(`저장 ${success ? '성공' : '실패'}`))
+                      .catch(e => alert(`저장 에러: ${e.message}`));
+                  }}
+                >
+                  저장 테스트
+                </button>
+              </p>
+              <p>
+                <strong>데이터 불러오기:</strong> 
+                <button
+                  className="ml-2 text-xs px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded"
+                  onClick={() => {
+                    loadFromServer()
+                      .then(data => alert(`불러오기 ${data ? '성공' : '실패'}: ${JSON.stringify(data || {}).slice(0, 100)}...`))
+                      .catch(e => alert(`불러오기 에러: ${e.message}`));
+                  }}
+                >
+                  불러오기 테스트
+                </button>
+              </p>
+            </div>
+          </div>
+        )}
+        
         {/* 사용자 선택 섹션 */}
         <section className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md">
           <h2 className="text-xl sm:text-2xl font-semibold mb-4">참여자 선택</h2>
@@ -500,9 +566,9 @@ export default function Home() {
                     readOnly
                   />
                   {selectedMember === HOST_NAME ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 max-w-full overflow-x-auto">
                       <button 
-                        className="flex-1 sm:flex-none px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                        className="min-w-fit px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm"
                         onClick={() => {
                           setCurrentMapType('kakao');
                           setMapModalOpen(true);
@@ -511,7 +577,7 @@ export default function Home() {
                         카카오맵
                       </button>
                       <button 
-                        className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                        className="min-w-fit px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
                         onClick={() => {
                           setCurrentMapType('naver');
                           setMapModalOpen(true);
@@ -521,13 +587,13 @@ export default function Home() {
                       </button>
                     </div>
                   ) : selectedLocation && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 max-w-full overflow-x-auto">
                       {selectedLocation.kakaoLink && (
                         <a
                           href={selectedLocation.kakaoLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 sm:flex-none px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center"
+                          className="min-w-fit px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center text-sm"
                         >
                           카카오맵으로 보기
                         </a>
@@ -537,7 +603,7 @@ export default function Home() {
                           href={selectedLocation.naverLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-center"
+                          className="min-w-fit px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-center text-sm"
                         >
                           네이버맵으로 보기
                         </a>
