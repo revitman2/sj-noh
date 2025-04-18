@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MEMBERS, HOST_NAME } from '@/constants/members';
 import MapModal from '@/components/MapModal';
+import { saveToLocal, loadFromLocal, saveToServer, loadFromServer } from '@/lib/storage';
 
 interface DateOption {
   id: string;
@@ -362,12 +363,6 @@ export default function Home() {
     });
   };
 
-  // 월 이름 배열
-  const MONTHS = [
-    '1월', '2월', '3월', '4월', '5월', '6월', 
-    '7월', '8월', '9월', '10월', '11월', '12월'
-  ];
-
   // 계원별 1년치 일괄 완납 처리 함수
   const handleMemberYearlyPayment = (member: string) => {
     // 해당 계원의 전체 납부 상태 확인
@@ -385,6 +380,66 @@ export default function Home() {
       }
     });
   };
+
+  // 월 이름 배열
+  const MONTHS = [
+    '1월', '2월', '3월', '4월', '5월', '6월', 
+    '7월', '8월', '9월', '10월', '11월', '12월'
+  ];
+
+  // 처음 로드 시 데이터 가져오기
+  useEffect(() => {
+    async function loadData() {
+      // 1. 먼저 로컬 데이터 로드 (빠른 로딩)
+      const localData = loadFromLocal();
+      if (localData) {
+        setDateOptions(localData.dateOptions || []);
+        setTimeOptions(localData.timeOptions || []);
+        setVotes(localData.votes || {});
+        setDuesPayments(localData.duesPayments || []);
+        setExpenses(localData.expenses || []);
+        setSelectedLocation(localData.selectedLocation || null);
+      }
+      
+      // 2. 서버 데이터 로드 (최신 데이터)
+      const serverData = await loadFromServer();
+      if (serverData) {
+        setDateOptions(serverData.dateOptions || []);
+        setTimeOptions(serverData.timeOptions || []);
+        setVotes(serverData.votes || {});
+        setDuesPayments(serverData.duesPayments || []);
+        setExpenses(serverData.expenses || []);
+        setSelectedLocation(serverData.selectedLocation || null);
+      }
+    }
+    
+    loadData();
+  }, []);
+
+  // 데이터 변경 시 저장
+  useEffect(() => {
+    // 처음 로드 시에는 저장 안함
+    if (!dateOptions || dateOptions.length === 0) return;
+    
+    const data = {
+      dateOptions,
+      timeOptions,
+      votes,
+      duesPayments,
+      expenses,
+      selectedLocation
+    };
+    
+    // 로컬 스토리지에 저장 (항상)
+    saveToLocal(data);
+    
+    // 서버에 저장 (2초 간격으로)
+    const timer = setTimeout(() => {
+      saveToServer(data);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [dateOptions, timeOptions, votes, duesPayments, expenses, selectedLocation]);
 
   return (
     <main className="min-h-screen p-4 sm:p-8 pb-20 bg-gray-50">
