@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MEMBERS, HOST_NAME } from '@/constants/members';
 import MapModal from '@/components/MapModal';
 import { saveToLocal, loadFromLocal, saveToServer, loadFromServer } from '@/lib/storage';
@@ -77,7 +77,7 @@ export default function Home() {
     if (!dateInput) return;
     
     // 이미 존재하는 날짜인지 확인
-    const dateExists = dateOptions.some(date => date.date === dateInput);
+    const dateExists = dateOptions.some((date: DateOption) => date.date === dateInput);
     if (dateExists) return;
     
     const newDate: DateOption = {
@@ -94,7 +94,7 @@ export default function Home() {
     if (!timeInput) return;
     
     // 이미 존재하는 시간인지 확인
-    const timeExists = timeOptions.some(time => time.time === timeInput);
+    const timeExists = timeOptions.some((time: TimeOption) => time.time === timeInput);
     if (timeExists) return;
     
     const newTime: TimeOption = {
@@ -108,32 +108,34 @@ export default function Home() {
 
   // 날짜 삭제 함수
   const removeDateOption = (id: string) => {
-    setDateOptions(dateOptions.filter(date => date.id !== id));
+    setDateOptions(dateOptions.filter((date: DateOption) => date.id !== id));
     
     // 관련된 투표도 삭제
-    const newVotes = { ...votes };
-    Object.keys(newVotes).forEach(key => {
-      if (key.startsWith(`${id}-`)) {
-        delete newVotes[key];
-      }
+    setVotes((prevVotes: any) => {
+      const newVotes = { ...prevVotes };
+      Object.keys(newVotes).forEach(key => {
+        if (key.startsWith(`${id}-`)) {
+          delete newVotes[key];
+        }
+      });
+      return newVotes;
     });
-    
-    setVotes(newVotes);
   };
 
   // 시간 삭제 함수
   const removeTimeOption = (id: string) => {
-    setTimeOptions(timeOptions.filter(time => time.id !== id));
+    setTimeOptions(timeOptions.filter((time: TimeOption) => time.id !== id));
     
     // 관련된 투표도 삭제
-    const newVotes = { ...votes };
-    Object.keys(newVotes).forEach(key => {
-      if (key.includes(`-${id}`)) {
-        delete newVotes[key];
-      }
+    setVotes((prevVotes: any) => {
+      const newVotes = { ...prevVotes };
+      Object.keys(newVotes).forEach(key => {
+        if (key.includes(`-${id}`)) {
+          delete newVotes[key];
+        }
+      });
+      return newVotes;
     });
-    
-    setVotes(newVotes);
   };
 
   // 날짜 포맷 함수
@@ -215,7 +217,7 @@ export default function Home() {
     }> = [];
     
     // 먼저 최대 투표수 찾기
-    Object.entries(votes).forEach(([key, voters]) => {
+    Object.entries(votes).forEach(([key, voters]: [string, string[]]) => {
       if (voters.length > maxVotes) {
         maxVotes = voters.length;
       }
@@ -225,7 +227,7 @@ export default function Home() {
     if (maxVotes === 0) return [];
     
     // 최대 투표수와 같은 투표수를 가진 모든 옵션 찾기
-    Object.entries(votes).forEach(([key, voters]) => {
+    Object.entries(votes).forEach(([key, voters]: [string, string[]]) => {
       if (voters.length === maxVotes) {
         const [dateId, timeId] = key.split('-');
         const dateOption = dateOptions.find(d => d.id === dateId);
@@ -458,7 +460,7 @@ export default function Home() {
                   try {
                     const { data, error } = await supabase.from('meeting_data').select().limit(1);
                     alert(`Supabase 연결 테스트: ${error ? '실패' : '성공'}\n${error ? error.message : JSON.stringify(data)}`);
-                  } catch (e) {
+                  } catch (e: any) {
                     alert(`Supabase 연결 에러: ${e.message}`);
                   }
                 }}
@@ -651,7 +653,7 @@ export default function Home() {
                       type="time"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
                       value={timeInput}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         // 30분 단위로 제한
                         const time = e.target.value;
                         const [hours, minutes] = time.split(':').map(Number);
@@ -698,7 +700,7 @@ export default function Home() {
                       type="date"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
                       value={dateInput}
-                      onChange={(e) => setDateInput(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDateInput(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
                     />
                     <button 
@@ -1064,7 +1066,7 @@ export default function Home() {
                     <input
                       type="date"
                       value={expenseInput.date}
-                      onChange={(e) => setExpenseInput({...expenseInput, date: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, date: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -1077,7 +1079,7 @@ export default function Home() {
                       type="text"
                       placeholder="지출 내역"
                       value={expenseInput.description}
-                      onChange={(e) => setExpenseInput({...expenseInput, description: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, description: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
@@ -1090,7 +1092,7 @@ export default function Home() {
                       type="number"
                       placeholder="금액"
                       value={expenseInput.amount}
-                      onChange={(e) => setExpenseInput({...expenseInput, amount: e.target.value})}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, amount: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
                   </div>
