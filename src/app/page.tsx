@@ -72,6 +72,9 @@ export default function Home() {
     amount: ''
   });
 
+  // 투표자 목록 팝업 상태 (최상위 레벨로 이동)
+  const [showVotersPopup, setShowVotersPopup] = useState<boolean>(false);
+
   // 날짜 추가 함수
   const addDateOption = () => {
     if (!dateInput) return;
@@ -717,6 +720,97 @@ export default function Home() {
                     투표하려면 먼저 본인 이름을 선택해주세요
                   </div>
                 )}
+                
+                {/* 미투표자 목록 표시 (투표 완료에서 변경) */}
+                {MEMBERS.length > 0 && (
+                  <div className="relative flex items-center ml-auto">
+                    <span className="text-sm text-gray-600 mr-2">미투표자:</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {/* 미투표자 목록 구하기 */}
+                      {(() => {
+                        // 모든 투표자 계산 (중복 제거)
+                        const allVoters = Array.from(new Set(
+                          Object.values(votes)
+                            .flatMap(voters => voters || [])
+                            .filter(voter => voter !== undefined)
+                        ));
+                        
+                        // 미투표자 = 전체 멤버 - 투표자
+                        const nonVoters = MEMBERS.filter(member => !allVoters.includes(member));
+                        
+                        // 화면에 표시할 투표자 수
+                        const displayCount = 5; // 처음에 표시할 미투표자 수
+                        
+                        // 표시할 미투표자와 나머지 미투표자 분리
+                        const displayNonVoters = nonVoters.slice(0, displayCount);
+                        const remainingCount = Math.max(0, nonVoters.length - displayCount);
+                        
+                        // 미투표자가 없을 경우 "없음" 표시
+                        if (nonVoters.length === 0) {
+                          return (
+                            <span className="text-sm text-green-600 font-medium">
+                              모두 투표 완료
+                            </span>
+                          );
+                        }
+                        
+                        return (
+                          <>
+                            {/* 미투표자 목록 표시 */}
+                            {displayNonVoters.map(member => (
+                              <span 
+                                key={`nonvoter-${member}`}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-white"
+                                title={member}
+                              >
+                                {member}
+                              </span>
+                            ))}
+                            
+                            {/* 더보기 버튼 (나머지 미투표자가 있을 경우만 표시) */}
+                            {remainingCount > 0 && (
+                              <>
+                                <button
+                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-white hover:bg-gray-200"
+                                  onClick={() => setShowVotersPopup(!showVotersPopup)}
+                                >
+                                  +{remainingCount} 더보기
+                                </button>
+                                
+                                {/* 팝업 */}
+                                {showVotersPopup && (
+                                  <div className="absolute top-full right-0 mt-1 z-50 bg-white p-3 rounded-md shadow-lg border border-gray-200 w-56">
+                                    <div className="text-sm font-medium mb-2 flex justify-between">
+                                      <span>미투표자 목록</span>
+                                      <button 
+                                        className="text-gray-500 hover:text-gray-700" 
+                                        onClick={() => setShowVotersPopup(false)}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                    <div className="max-h-40 overflow-y-auto">
+                                      <div className="flex flex-col gap-1">
+                                        {nonVoters.map(member => (
+                                          <div 
+                                            key={`popup-nonvoter-${member}`} 
+                                            className="px-2 py-1 text-sm rounded hover:bg-gray-50"
+                                          >
+                                            {member}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {dateOptions.length === 0 || timeOptions.length === 0 ? (
@@ -791,6 +885,63 @@ export default function Home() {
               )}
             </div>
             
+            {/* 모든 날짜 불가능 옵션 추가 */}
+            {(dateOptions.length > 0 && timeOptions.length > 0) && (
+              <div className="mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-5 w-5 text-red-600 rounded"
+                    checked={selectedMember ? Object.keys(votes).some(key => key === 'all-dates-unavailable' && votes[key]?.includes(selectedMember)) : false}
+                    onChange={() => {
+                      if (!selectedMember) return;
+                      
+                      setVotes((prevVotes) => {
+                        const newVotes = { ...prevVotes };
+                        const key = 'all-dates-unavailable';
+                        
+                        if (!newVotes[key]) {
+                          newVotes[key] = [];
+                        }
+                        
+                        const memberIndex = newVotes[key].indexOf(selectedMember);
+                        
+                        if (memberIndex > -1) {
+                          // 이미 체크했다면 체크 취소
+                          newVotes[key] = newVotes[key].filter((name: string) => name !== selectedMember);
+                        } else {
+                          // 체크 추가
+                          newVotes[key] = [...newVotes[key], selectedMember];
+                        }
+                        
+                        return newVotes;
+                      });
+                    }}
+                    disabled={!selectedMember}
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">모든 날짜 불가능</span>
+                  
+                  {/* 모든 날짜 불가능 투표자 표시 */}
+                  {votes['all-dates-unavailable'] && votes['all-dates-unavailable'].length > 0 && (
+                    <div className="ml-auto flex items-center">
+                      <span className="text-xs text-gray-500 mr-2">{votes['all-dates-unavailable'].length}명</span>
+                      <div className="flex -space-x-1">
+                        {votes['all-dates-unavailable'].map((voter, index) => (
+                          <span 
+                            key={`unavailable-${voter}`}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-white"
+                            title={voter}
+                          >
+                            {index < 3 ? voter : index === 3 ? `+${votes['all-dates-unavailable'].length - 3}` : null}
+                          </span>
+                        )).slice(0, 4)}
+                      </div>
+                    </div>
+                  )}
+                </label>
+              </div>
+            )}
+
             {/* 최종 결정된 일정 표시 (가장 많은 투표를 받은 날짜) */}
             {getMostVotedOptions().length > 0 && (
               <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
