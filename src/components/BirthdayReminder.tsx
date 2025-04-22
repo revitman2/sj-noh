@@ -19,10 +19,13 @@ const BirthdayReminder: React.FC<BirthdayReminderProps> = ({
   
   useEffect(() => {
     // 오늘 생일인 멤버 확인
-    setTodayBirthdays(getTodaysBirthdayMembers());
+    setTodayBirthdays(getTodaysBirthdayMembers().map(member => member.name));
     
     // 다가오는 생일 멤버 확인 (30일 이내)
-    setUpcomingBirthdays(getUpcomingBirthdayMembers(30));
+    setUpcomingBirthdays(getUpcomingBirthdayMembers(30).map(member => ({
+      name: member.name,
+      date: `${new Date().getFullYear()}-${member.birthDate} (D-${member.daysUntil})`
+    })));
   }, []);
   
   // 렌더링 조건 확인
