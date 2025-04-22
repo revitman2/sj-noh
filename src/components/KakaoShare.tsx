@@ -12,10 +12,14 @@ const KAKAO_KEY = '5c570f884f3a76405f4611fc64d4fc4f';
 
 // 카카오 SDK 초기화 함수
 const initKakao = () => {
-  // 이미 초기화된 경우 중복 초기화 방지
-  if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init(KAKAO_KEY);
-    console.log('Kakao SDK initialized');
+  try {
+    // 이미 초기화된 경우 중복 초기화 방지
+    if (window.Kakao && !window.Kakao.isInitialized()) {
+      window.Kakao.init(KAKAO_KEY);
+      console.log('Kakao SDK initialized');
+    }
+  } catch (error) {
+    console.error('Failed to initialize Kakao SDK:', error);
   }
 };
 
@@ -97,8 +101,8 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
 
 // 메시지 템플릿 생성 함수 (생일 알림)
 const createBirthdayTemplate = (memberName: string, birthDate: string) => {
-  // 완전히 외부에서 호스팅된 이미지 URL 사용
-  const imageUrl = 'https://i.ibb.co/k9cQmX6/13per.png';
+  // public 폴더의 이미지 사용
+  const imageUrl = `${window.location.origin}/13per.png`;
   
   return {
     objectType: 'feed',
@@ -154,26 +158,58 @@ interface KakaoShareButtonProps {
 
 const KakaoShareButton = ({ templateType, params, buttonText, className = '' }: KakaoShareButtonProps) => {
   useEffect(() => {
-    // 스크립트 로드 및 초기화
-    const script = document.createElement('script');
-    script.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.4.0/kakao.min.js';
-    script.integrity = 'sha384-mXVrIX2T/Kszp6Z0aEWaA8Nm7J6/ZeWXbL8UpGRjKwWe56Srd/iyNmWMBhcItAjH';
-    script.crossOrigin = 'anonymous';
-    script.async = true;
+    // 스크립트가 이미 로드되어 있는지 확인
+    const existingScript = document.querySelector('script[src*="kakao_js_sdk"]');
     
-    script.onload = () => {
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.4.0/kakao.min.js';
+      script.integrity = 'sha384-mXVrIX2T/Kszp6Z0aEWaA8Nm7J6/ZeWXbL8UpGRjKwWe56Srd/iyNmWMBhcItAjH';
+      script.crossOrigin = 'anonymous';
+      script.async = true;
+      
+      script.onload = () => {
+        console.log('Kakao SDK script loaded');
+        initKakao();
+      };
+      
+      script.onerror = (error) => {
+        console.error('Failed to load Kakao SDK:', error);
+      };
+      
+      document.head.appendChild(script);
+    } else {
+      // 스크립트가 이미 있다면 초기화만 진행
       initKakao();
-    };
-    
-    document.head.appendChild(script);
+    }
     
     return () => {
-      document.head.removeChild(script);
+      // cleanup은 스크립트가 새로 추가된 경우에만 수행
+      const addedScript = document.querySelector('script[src*="kakao_js_sdk"]:not([data-loaded])');
+      if (addedScript) {
+        document.head.removeChild(addedScript);
+      }
     };
   }, []);
 
   const handleShare = () => {
-    shareToKakao(templateType, params);
+    try {
+      if (!window.Kakao) {
+        console.error('Kakao SDK not loaded');
+        alert('카카오톡 공유 기능을 초기화하는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      
+      if (!window.Kakao.isInitialized()) {
+        console.error('Kakao SDK not initialized');
+        initKakao();
+      }
+      
+      shareToKakao(templateType, params);
+    } catch (error) {
+      console.error('Failed to share:', error);
+      alert('카카오톡 공유 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    }
   };
 
   return (
