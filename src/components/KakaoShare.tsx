@@ -101,8 +101,8 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
 
 // 메시지 템플릿 생성 함수 (생일 알림)
 const createBirthdayTemplate = (memberName: string, birthDate: string) => {
-  // public 폴더의 이미지 사용
-  const imageUrl = `${window.location.origin}/13per.png`;
+  // 이미지를 안정적인 공개 URL로 설정
+  const imageUrl = 'https://i.postimg.cc/mrDHHbDR/13per.png';
   
   return {
     objectType: 'feed',
