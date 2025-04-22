@@ -131,7 +131,7 @@ export default function Home() {
   useEffect(() => {
     const notifiedData = loadFromLocal('birthdayNotified');
     if (notifiedData) {
-      setBirthdayNotified(notifiedData);
+      setBirthdayNotified(notifiedData as { [key: string]: boolean });
     }
   }, []);
 
@@ -525,29 +525,34 @@ export default function Home() {
         // 1. 먼저 로컬 데이터 로드 (빠른 로딩)
         const localData = loadFromLocal();
         if (localData) {
-          setDateOptions(localData.dateOptions || []);
-          setTimeOptions(localData.timeOptions || []);
-          setVotes(localData.votes || {});
-          setDuesPayments(localData.duesPayments || []);
-          setExpenses(localData.expenses || []);
-          setSelectedLocation(localData.selectedLocation || null);
+          setDateOptions((localData as any).dateOptions || []);
+          setTimeOptions((localData as any).timeOptions || []);
+          setVotes((localData as any).votes || {});
+          setDuesPayments((localData as any).duesPayments || []);
+          setExpenses((localData as any).expenses || []);
+          setSelectedLocation((localData as any).selectedLocation || null);
         }
         
         // 2. 서버 데이터 로드 (최신 데이터)
         const serverData = await loadFromServer();
         if (serverData) {
-          setDateOptions(serverData.dateOptions || []);
-          setTimeOptions(serverData.timeOptions || []);
-          setVotes(serverData.votes || {});
-          setDuesPayments(serverData.duesPayments || []);
-          setExpenses(serverData.expenses || []);
-          setSelectedLocation(serverData.selectedLocation || null);
+          setDateOptions((serverData as any).dateOptions || []);
+          setTimeOptions((serverData as any).timeOptions || []);
+          setVotes((serverData as any).votes || {});
+          setDuesPayments((serverData as any).duesPayments || []);
+          setExpenses((serverData as any).expenses || []);
+          setSelectedLocation((serverData as any).selectedLocation || null);
         }
         
         // 저장된 확정 날짜 불러오기
         const savedConfirmedDate = loadFromLocal('confirmedDate');
         if (savedConfirmedDate) {
-          setConfirmedDateOption(savedConfirmedDate);
+          setConfirmedDateOption(savedConfirmedDate as { 
+            dateId: string; 
+            timeId: string; 
+            date: string; 
+            time: string; 
+          });
         }
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -811,7 +816,7 @@ export default function Home() {
                   <div 
                     key={member.name} 
                     className={`p-3 rounded-lg border ${
-                      member.daysUntil <= 7 
+                      member.daysUntil && member.daysUntil <= 7 
                         ? 'bg-gradient-to-r from-pink-50 to-red-50 border-pink-200' 
                         : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
                     }`}
@@ -828,9 +833,9 @@ export default function Home() {
                             memberName: member.name,
                             birthDate: member.birthDate
                           }}
-                          buttonText={member.daysUntil <= 7 ? "🎉 지금 축하하기" : "🎂 축하 준비하기"}
+                          buttonText={member.daysUntil && member.daysUntil <= 7 ? "🎉 지금 축하하기" : "🎂 축하 준비하기"}
                           className={`text-xs ${
-                            member.daysUntil <= 7 
+                            member.daysUntil && member.daysUntil <= 7 
                               ? 'bg-pink-500 hover:bg-pink-600' 
                               : 'bg-purple-500 hover:bg-purple-600'
                           }`}
