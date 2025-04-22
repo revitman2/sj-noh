@@ -5,6 +5,8 @@ import { MEMBERS, HOST_NAME } from '@/constants/members';
 import MapModal from '@/components/MapModal';
 import { saveToLocal, loadFromLocal, saveToServer, loadFromServer } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import KakaoShareButton from '@/components/KakaoShare';
+import { getTodaysBirthdayMembers, getUpcomingBirthdayMembers } from '@/constants/birthdays';
 
 interface DateOption {
   id: string;
@@ -74,6 +76,9 @@ export default function Home() {
 
   // 투표자 목록 팝업 상태 (최상위 레벨로 이동)
   const [showVotersPopup, setShowVotersPopup] = useState<boolean>(false);
+  
+  // 저장 성공 메시지 표시 상태
+  const [showSaveSuccess, setShowSaveSuccess] = useState<boolean>(false);
 
   // 날짜 추가 함수
   const addDateOption = () => {
@@ -552,9 +557,143 @@ export default function Home() {
           )}
         </section>
         
+        {/* 호스트용 생일 알림 공유 기능 */}
+        {selectedMember === HOST_NAME && (
+          <section className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">생일 알림 공유</h2>
+            <div className="space-y-4">
+              {/* 오늘 생일인 멤버 */}
+              {(() => {
+                const todayBirthdays = getTodaysBirthdayMembers();
+                if (todayBirthdays.length > 0) {
+                  return (
+                    <div className="p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium text-pink-800">오늘 생일인 멤버</h3>
+                        {todayBirthdays.map(member => (
+                          <KakaoShareButton
+                            key={member}
+                            templateType="birthday"
+                            params={{
+                              memberName: member,
+                              birthDate: new Date().toLocaleDateString('ko-KR', {
+                                month: 'long',
+                                day: 'numeric'
+                              })
+                            }}
+                            buttonText="축하 메시지 공유하기"
+                            className="text-sm"
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {todayBirthdays.map(member => (
+                          <div 
+                            key={member}
+                            className="flex items-center bg-pink-100 text-pink-800 px-3 py-1 rounded-full"
+                          >
+                            <span className="text-lg mr-1">🎂</span>
+                            <span>{member}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-gray-500">오늘 생일인 멤버가 없습니다.</div>
+                );
+              })()}
+              
+              {/* 다가오는 생일 멤버 */}
+              {(() => {
+                const upcomingBirthdays = getUpcomingBirthdayMembers(30);
+                if (upcomingBirthdays.length > 0) {
+                  return (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h3 className="font-medium text-blue-800 mb-2">다가오는 생일 (30일 이내)</h3>
+                      <div className="space-y-2">
+                        {upcomingBirthdays.map(member => (
+                          <div 
+                            key={member.name}
+                            className="flex justify-between items-center"
+                          >
+                            <div className="flex items-center">
+                              <span className="mr-2">{member.name}</span>
+                              <span className="text-sm text-gray-500">{member.date}</span>
+                            </div>
+                            <KakaoShareButton
+                              templateType="birthday"
+                              params={{
+                                memberName: member.name,
+                                birthDate: member.date.split(' (')[0]
+                              }}
+                              buttonText="축하 메시지 공유하기"
+                              className="text-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-gray-500">다가오는 생일 멤버가 없습니다.</div>
+                );
+              })()}
+            </div>
+          </section>
+        )}
+        
         {/* 모임 일정 섹션 */}
         <section className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-xl sm:text-2xl font-semibold mb-4">모임 일정 설정</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl sm:text-2xl font-semibold">모임 일정 설정</h2>
+            
+            {/* 호스트 전용 리셋 버튼 */}
+            {selectedMember === HOST_NAME && (
+              <button
+                onClick={() => {
+                  if (window.confirm('정말 모임 정보를 초기화하시겠습니까? (장소, 시간, 날짜, 투표 정보가 모두 삭제됩니다)')) {
+                    // 모임 장소 초기화
+                    setSelectedLocation(null);
+                    
+                    // 시간 옵션 초기화
+                    setTimeOptions([]);
+                    setTimeInput('');
+                    
+                    // 날짜 옵션 초기화
+                    setDateOptions([]);
+                    setDateInput('');
+                    
+                    // 투표 초기화
+                    setVotes({});
+                    
+                    // 로컬 저장소에도 반영
+                    const data = {
+                      selectedLocation: null,
+                      timeOptions: [],
+                      dateOptions: [],
+                      votes: {},
+                      // 계비 관리 정보는 유지
+                      duesPayments,
+                      expenses,
+                      _resetTime: new Date().toISOString()
+                    };
+                    saveToLocal(data);
+                    
+                    alert('모임 정보가 초기화되었습니다.');
+                  }
+                }}
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium flex items-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                모임정보 초기화
+              </button>
+            )}
+          </div>
           <div className="space-y-6">
             {/* 장소 설정 */}
             <div>
@@ -805,6 +944,18 @@ export default function Home() {
                                 )}
                               </>
                             )}
+                            
+                            {/* 미투표자에게 카카오톡 알림 보내기 버튼 (호스트만 볼 수 있음) */}
+                            {selectedMember === HOST_NAME && nonVoters.length > 0 && (
+                              <div className="ml-2">
+                                <KakaoShareButton
+                                  templateType="vote"
+                                  params={{ memberNames: nonVoters }}
+                                  buttonText="투표 독촉하기"
+                                  className="text-xs py-1 px-2"
+                                />
+                              </div>
+                            )}
                           </>
                         );
                       })()}
@@ -942,13 +1093,73 @@ export default function Home() {
               </div>
             )}
 
+            {/* 저장 버튼 추가 */}
+            {selectedMember && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => {
+                    // 현재 상태를 로컬 스토리지에 저장
+                    const data = {
+                      selectedLocation,
+                      dateOptions,
+                      timeOptions,
+                      votes,
+                      duesPayments,
+                      expenses,
+                      _saveTime: new Date().toISOString()
+                    };
+                    
+                    saveToLocal(data);
+                    
+                    // 저장 성공 표시
+                    setShowSaveSuccess(true);
+                    
+                    // 3초 후 메시지 숨기기
+                    setTimeout(() => {
+                      setShowSaveSuccess(false);
+                    }, 3000);
+                  }}
+                  className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  투표완료 및 저장
+                </button>
+              </div>
+            )}
+            
+            {/* 저장 성공 메시지 */}
+            {showSaveSuccess && (
+              <div className="mt-3 p-2 bg-green-100 border border-green-200 rounded-md text-center text-green-700 animate-pulse">
+                투표 정보가 성공적으로 저장되었습니다!
+              </div>
+            )}
+
             {/* 최종 결정된 일정 표시 (가장 많은 투표를 받은 날짜) */}
             {getMostVotedOptions().length > 0 && (
               <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="text-lg font-semibold text-green-800">
-                  현재 가장 많은 투표를 받은 날짜
-                  {getMostVotedOptions().length > 1 ? ' (복수)' : ''}
-                </h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-green-800">
+                    현재 가장 많은 투표를 받은 날짜
+                    {getMostVotedOptions().length > 1 ? ' (복수)' : ''}
+                  </h3>
+                  
+                  {/* 투표 결과 공유 버튼 */}
+                  {selectedMember && getMostVotedOptions().length > 0 && (
+                    <KakaoShareButton
+                      templateType="result"
+                      params={{
+                        date: formatDate(getMostVotedOptions()[0].date),
+                        time: getMostVotedOptions()[0].time,
+                        location: selectedLocation?.name || '미정',
+                        participantCount: getMostVotedOptions()[0].votes
+                      }}
+                      buttonText="결과 공유하기"
+                      className="text-xs"
+                    />
+                  )}
+                </div>
                 
                 {getMostVotedOptions().map((option, index) => (
                   <div key={`${option.date}-${option.time}`} className={index > 0 ? "mt-4 pt-4 border-t border-green-200" : "mt-2"}>
@@ -1046,7 +1257,23 @@ export default function Home() {
           
           {/* 월별 납부 현황 테이블 */}
           <div className="mb-8">
-            <h3 className="text-lg font-medium mb-3">월별 납부 현황</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-medium">월별 납부 현황</h3>
+              
+              {/* 계비 납부 독촉 카카오톡 공유 버튼 (호스트만 볼 수 있음) */}
+              {selectedMember === HOST_NAME && (
+                <KakaoShareButton
+                  templateType="dues"
+                  params={{
+                    memberName: '미납 회원',
+                    amount: 20000,
+                    dueDate: `${selectedYear}년 ${new Date().getMonth() + 1}월 ${new Date().getDate() + 7}일`
+                  }}
+                  buttonText="납부 독촉하기"
+                  className="text-xs"
+                />
+              )}
+            </div>
             
             {/* 월별 일괄 완납 버튼 (호스트 전용) */}
             {selectedMember === HOST_NAME && (
