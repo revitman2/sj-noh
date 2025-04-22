@@ -17,18 +17,30 @@ export const MEMBER_BIRTHDAYS: { [key: string]: string } = {
   '은혜': '10-26',
 };
 
+// 생일 정보 인터페이스
+export interface BirthdayMember {
+  name: string;
+  birthDate: string;
+  daysUntil?: number;
+}
+
 // 오늘 생일인 멤버 찾기
-export const getTodaysBirthdayMembers = (): string[] => {
+export const getTodaysBirthdayMembers = (): BirthdayMember[] => {
   const today = new Date();
   const todayFormatted = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
-  return MEMBERS.filter(member => MEMBER_BIRTHDAYS[member] === todayFormatted);
+  return MEMBERS.filter(member => MEMBER_BIRTHDAYS[member] === todayFormatted)
+    .map(member => ({
+      name: member,
+      birthDate: MEMBER_BIRTHDAYS[member],
+      daysUntil: 0
+    }));
 };
 
 // 다가오는 생일 멤버 찾기 (30일 이내)
-export const getUpcomingBirthdayMembers = (daysAhead: number = 30): Array<{name: string, date: string}> => {
+export const getUpcomingBirthdayMembers = (daysAhead: number = 30): BirthdayMember[] => {
   const today = new Date();
-  const upcomingMembers: Array<{name: string, date: string}> = [];
+  const upcomingMembers: BirthdayMember[] = [];
   
   MEMBERS.forEach(member => {
     const birthday = MEMBER_BIRTHDAYS[member];
@@ -45,29 +57,15 @@ export const getUpcomingBirthdayMembers = (daysAhead: number = 30): Array<{name:
     const diffTime = birthdayDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays <= daysAhead) {
+    if (diffDays <= daysAhead && diffDays > 0) {
       upcomingMembers.push({
         name: member,
-        date: `${month}월 ${day}일 (${diffDays}일 후)`
+        birthDate: birthday,
+        daysUntil: diffDays
       });
     }
   });
   
-  // 날짜순 정렬 (수정: 문자열 파싱 오류 수정)
-  return upcomingMembers.sort((a, b) => {
-    const aMonthStr = a.date.split('월')[0].trim();
-    const aDayStr = a.date.split('월')[1].split('일')[0].trim();
-    const bMonthStr = b.date.split('월')[0].trim();
-    const bDayStr = b.date.split('월')[1].split('일')[0].trim();
-    
-    const aMonth = parseInt(aMonthStr);
-    const aDay = parseInt(aDayStr);
-    const bMonth = parseInt(bMonthStr);
-    const bDay = parseInt(bDayStr);
-    
-    const aDate = new Date(today.getFullYear(), aMonth - 1, aDay);
-    const bDate = new Date(today.getFullYear(), bMonth - 1, bDay);
-    
-    return aDate.getTime() - bDate.getTime();
-  });
+  // 날짜순 정렬
+  return upcomingMembers.sort((a, b) => (a.daysUntil || 0) - (b.daysUntil || 0));
 }; 

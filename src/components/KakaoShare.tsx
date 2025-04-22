@@ -28,9 +28,9 @@ const createDuesReminderTemplate = (memberName: string, amount: number, dueDate:
   return {
     objectType: 'feed',
     content: {
-      title: '계비 납부 안내',
-      description: `${memberName}님, ${amount.toLocaleString()}원의 계비를 ${dueDate}까지 납부해주세요.`,
-      imageUrl: 'https://cdn-icons-png.flaticon.com/512/2991/2991483.png',
+      title: '🔔 계비 납부 안내',
+      description: `${memberName}님, ${amount.toLocaleString()}원 납부를 부탁드립니다.\n납부 기한: 오늘`,
+      imageUrl: 'https://i.ibb.co/FbHj0zjF/money.png',
       link: {
         mobileWebUrl: window.location.href,
         webUrl: window.location.href,
@@ -38,7 +38,7 @@ const createDuesReminderTemplate = (memberName: string, amount: number, dueDate:
     },
     buttons: [
       {
-        title: '계모임 앱으로 이동',
+        title: '자세히 보기',
         link: {
           mobileWebUrl: window.location.href,
           webUrl: window.location.href,
@@ -54,9 +54,9 @@ const createVoteReminderTemplate = (memberNames: string[]) => {
   return {
     objectType: 'feed',
     content: {
-      title: '모임 날짜 투표 안내',
-      description: `${membersList}님, 아직 모임 날짜 투표에 참여하지 않으셨습니다. 투표에 참여해주세요!`,
-      imageUrl: 'https://cdn-icons-png.flaticon.com/512/2058/2058256.png',
+      title: '투표 표해주세요!!',
+      description: `${membersList}님, 투표에 참여해주세요!`,
+      imageUrl: 'https://i.ibb.co/yFDKfSb4/vote.png',
       link: {
         mobileWebUrl: window.location.href,
         webUrl: window.location.href,
@@ -81,7 +81,7 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
     content: {
       title: '모임 일정이 확정되었습니다',
       description: `일시: ${date} ${time}\n장소: ${location}\n참여 가능 인원: ${participantCount}명`,
-      imageUrl: 'https://cdn-icons-png.flaticon.com/512/3075/3075552.png',
+      imageUrl: 'https://i.ibb.co/5xKbwKKH/food.png',
       link: {
         mobileWebUrl: window.location.href,
         webUrl: window.location.href,
@@ -102,7 +102,7 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
 // 메시지 템플릿 생성 함수 (생일 알림)
 const createBirthdayTemplate = (memberName: string, birthDate: string) => {
   // ImgBB에 업로드된, 이미지 직접 링크로 변경
-  const imageUrl = 'https://i.ibb.co/n8nX9pV7/13per.png';
+  const imageUrl = 'https://i.ibb.co/dwCNBs2S/14per.png';
   
   return {
     objectType: 'feed',
