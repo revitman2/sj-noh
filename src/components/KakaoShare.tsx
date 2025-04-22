@@ -101,8 +101,8 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
 
 // 메시지 템플릿 생성 함수 (생일 알림)
 const createBirthdayTemplate = (memberName: string, birthDate: string) => {
-  // 구글 드라이브 이미지를 직접 참조 형식으로 변환
-  const imageUrl = 'https://drive.google.com/uc?export=view&id=1p_fiIcsy2LTF3ec2LrxqgREXFDBMVpcY';
+  // ImgBB에 업로드된, 이미지 직접 링크로 변경
+  const imageUrl = 'https://i.ibb.co/n8nX9pV7/13per.png';
   
   return {
     objectType: 'feed',
