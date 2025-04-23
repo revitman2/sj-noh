@@ -674,6 +674,85 @@ export default function Home() {
     };
   };
 
+  // 각 섹션에 ID 추가
+  useEffect(() => {
+    // URL 파라미터 확인
+    const handleURLParams = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const section = urlParams.get('section');
+      
+      if (section) {
+        // 페이지가 완전히 로드된 후 스크롤 수행
+        setTimeout(() => {
+          let targetElement;
+          
+          switch (section) {
+            case 'schedule':
+              // 모임 일정 섹션으로 스크롤
+              targetElement = document.getElementById('schedule-section');
+              // 투표 결과 영역이 있으면 그쪽으로 스크롤
+              const voteResults = document.getElementById('vote-results');
+              if (voteResults) targetElement = voteResults;
+              break;
+            case 'vote':
+              // 투표 섹션으로 스크롤
+              targetElement = document.getElementById('vote-section');
+              break;
+            case 'dues':
+              // 계비 관리 섹션으로 스크롤
+              targetElement = document.getElementById('dues-section');
+              break;
+            case 'birthday':
+              // 생일 알림 섹션으로 스크롤
+              targetElement = document.getElementById('birthday-section');
+              break;
+          }
+          
+          if (targetElement) {
+            // 먼저 부드럽게 스크롤
+            window.scrollTo({
+              top: targetElement.offsetTop - 20, // 약간의 여백 추가
+              behavior: 'smooth'
+            });
+            
+            // 스크롤 완료 후 섹션 하이라이트 효과 추가
+            setTimeout(() => {
+              // 임시 하이라이트 클래스 추가
+              targetElement.classList.add('highlight-section');
+              
+              // 3초 후 하이라이트 제거
+              setTimeout(() => {
+                targetElement.classList.remove('highlight-section');
+              }, 3000);
+            }, 1000);
+          }
+        }, 500); // 페이지 로딩 후 스크롤하기 위한 시간 조정
+      }
+    };
+    
+    // 하이라이트 스타일 동적 추가
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes highlightPulse {
+        0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+        70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+      }
+      .highlight-section {
+        animation: highlightPulse 2s ease-out;
+        transition: all 0.3s ease;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    handleURLParams();
+    
+    // 컴포넌트 언마운트 시 스타일 제거
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   return (
     <main className="min-h-screen p-4 max-w-4xl mx-auto pb-20 bg-gray-50">
       <h1 className="text-2xl font-bold mb-8 text-center py-4 border-b-2 border-blue-500">삶의 질 동기모임</h1>
@@ -851,7 +930,7 @@ export default function Home() {
       </section>
       
       {/* 모임 일정 섹션 */}
-      <section className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-green-500">
+      <section id="schedule-section" className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-green-500">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl sm:text-2xl font-semibold text-green-700 flex items-center">
             <span className="mr-2">📅</span>
@@ -1069,192 +1148,157 @@ export default function Home() {
               </div>
             </div>
           )}
-
+          
           {/* 날짜 및 시간 투표 */}
-          <div className="space-y-4">
+          <div id="vote-section" className="space-y-4 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-blue-500 mb-8">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">날짜 투표</h3>
-              {!selectedMember && (
-                <div className="text-sm text-gray-500">
-                  투표하려면 먼저 본인 이름을 선택해주세요
-                </div>
-              )}
               
-              {/* 미투표자 목록 표시 (투표 완료에서 변경) */}
-              {MEMBERS.length > 0 && (
-                <div className="relative flex items-center ml-auto">
-                  <span className="text-sm text-gray-600 mr-2">미투표자:</span>
-                  <div className="flex flex-wrap items-center gap-1">
-                    {/* 미투표자 목록 구하기 */}
-                    {(() => {
-                      // 모든 투표자 계산 (중복 제거)
-                      const allVoters = Array.from(new Set(
-                        Object.values(votes)
-                          .flatMap(voters => voters || [])
-                          .filter(voter => voter !== undefined)
-                      ));
-                      
-                      // 미투표자 = 전체 멤버 - 투표자
-                      const nonVoters = MEMBERS.filter(member => !allVoters.includes(member));
-                      
-                      // 화면에 표시할 투표자 수
-                      const displayCount = 5; // 처음에 표시할 미투표자 수
-                      
-                      // 표시할 미투표자와 나머지 미투표자 분리
-                      const displayNonVoters = nonVoters.slice(0, displayCount);
-                      const remainingCount = Math.max(0, nonVoters.length - displayCount);
-                      
-                      // 미투표자가 없을 경우 "없음" 표시
-                      if (nonVoters.length === 0) {
-                        return (
-                          <span className="text-sm text-green-600 font-medium">
-                            모두 투표 완료
-                          </span>
-                        );
-                      }
-                      
-                      return (
-                        <>
-                          {/* 미투표자 목록 표시 */}
-                          {displayNonVoters.map(member => (
-                            <span 
-                              key={`nonvoter-${member}`}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-white"
-                              title={member}
-                            >
-                              {member}
-                            </span>
-                          ))}
-                          
-                          {/* 더보기 버튼 (나머지 미투표자가 있을 경우만 표시) */}
-                          {remainingCount > 0 && (
-                            <>
-                              <button
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-white hover:bg-gray-200"
-                                onClick={() => setShowVotersPopup(!showVotersPopup)}
-                              >
-                                +{remainingCount} 더보기
-                              </button>
-                              
-                              {/* 팝업 */}
-                              {showVotersPopup && (
-                                <div className="absolute top-full right-0 mt-1 z-50 bg-white p-3 rounded-md shadow-lg border border-gray-200 w-56">
-                                  <div className="text-sm font-medium mb-2 flex justify-between">
-                                    <span>미투표자 목록</span>
-                                    <button 
-                                      className="text-gray-500 hover:text-gray-700" 
-                                      onClick={() => setShowVotersPopup(false)}
-                                    >
-                                      ×
-                                    </button>
-                                  </div>
-                                  <div className="max-h-40 overflow-y-auto">
-                                    <div className="flex flex-col gap-1">
-                                      {nonVoters.map(member => (
-                                        <div 
-                                          key={`popup-nonvoter-${member}`} 
-                                          className="px-2 py-1 text-sm rounded hover:bg-gray-50"
-                                        >
-                                          {member}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          
-                          {/* 미투표자에게 카카오톡 알림 보내기 버튼 (호스트만 볼 수 있음) */}
-                          {selectedMember === HOST_NAME && nonVoters.length > 0 && (
-                            <div className="ml-2">
-                              <KakaoShareButton
-                                templateType="vote"
-                                params={{ memberNames: nonVoters }}
-                                buttonText="투표 독촉하기"
-                                className="text-xs py-1 px-2"
-                              />
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
+              {/* 이름 선택 콤보박스 추가 */}
+              <div className="max-w-xs">
+                <select
+                  value={selectedMember}
+                  onChange={(e) => setSelectedMember(e.target.value)}
+                  className="text-sm px-2 py-1 border border-gray-300 rounded-md bg-white"
+                >
+                  <option value="">이름 선택</option>
+                  {MEMBERS.map((member) => (
+                    <option key={member} value={member}>
+                      {member}{member === HOST_NAME ? ' (호스트)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            
-            {dateOptions.length === 0 || timeOptions.length === 0 ? (
-              <p className="text-gray-500 py-4 text-center">
-                {dateOptions.length === 0 && timeOptions.length === 0 
-                  ? '아직 날짜와 시간이 설정되지 않았습니다.' 
-                  : dateOptions.length === 0 
-                    ? '아직 날짜가 설정되지 않았습니다.' 
-                    : '아직 시간이 설정되지 않았습니다.'}
-              </p>
-            ) : (
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜 / 시간</th>
-                      {timeOptions.map(time => (
-                        <th key={time.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {time.time}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dateOptions.map(dateOption => (
-                      <tr key={dateOption.id}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {formatDate(dateOption.date)}
-                        </td>
-                        {timeOptions.map(timeOption => {
-                          const voters = getVotesForDateAndTime(dateOption.id, timeOption.id);
-                          const hasVoted = selectedMember ? voters.includes(selectedMember) : false;
-                          
-                          return (
-                            <td key={timeOption.id} className="px-4 py-3 text-center">
-                              <div className="flex flex-col items-center">
-                                <div 
-                                  className={`relative inline-flex justify-center items-center w-8 h-8 rounded-full mb-1 cursor-pointer border ${
-                                    hasVoted 
-                                      ? 'bg-blue-100 border-blue-400 text-blue-800' 
-                                      : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
-                                  }`}
-                                  onClick={() => selectedMember && toggleVote(dateOption.id, timeOption.id, selectedMember)}
-                                  title={hasVoted ? '참석 불가능으로 변경' : '참석 가능으로 변경'}
-                                >
-                                  {hasVoted ? '✓' : ''}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {voters.length > 0 ? `${voters.length}명` : ''}
-                                </div>
-                              </div>
-                              {voters.length > 0 && (
-                                <div className="hidden group-hover:block absolute z-10 bg-white p-2 rounded shadow-lg border">
-                                  <div className="text-xs font-medium mb-1">참여 가능:</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {voters.map(voter => (
-                                      <span key={voter} className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-xs">
-                                        {voter}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+            {/* 미투표자 목록 표시 (투표 완료에서 변경) */}
+            {MEMBERS.length > 0 && (
+              <div className="relative flex items-center mb-4">
+                <span className="text-sm text-gray-600 mr-2">미투표자:</span>
+                <div className="flex flex-wrap items-center gap-1">
+                  {/* 미투표자 목록 구하기 */}
+                  {(() => {
+                    // 모든 투표자 계산 (중복 제거)
+                    const allVoters = Array.from(new Set(
+                      Object.values(votes)
+                        .flatMap(voters => voters || [])
+                        .filter(voter => voter !== undefined)
+                    ));
+                    
+                    // 미투표자 = 전체 멤버 - 투표자
+                    const nonVoters = MEMBERS.filter(member => !allVoters.includes(member));
+                    
+                    // 미투표자가 없을 경우 "없음" 표시
+                    if (nonVoters.length === 0) {
+                      return (
+                        <span className="text-sm text-green-600 font-medium">
+                          모두 투표 완료
+                        </span>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        {/* 모든 미투표자 표시 */}
+                        {nonVoters.map(member => (
+                          <span 
+                            key={`nonvoter-${member}`}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-white"
+                            title={member}
+                          >
+                            {member}
+                          </span>
+                        ))}
+                        
+                        {/* 미투표자에게 카카오톡 알림 보내기 버튼 (호스트만 볼 수 있음) */}
+                        {selectedMember === HOST_NAME && nonVoters.length > 0 && (
+                          <div className="ml-2">
+                            <KakaoShareButton
+                              templateType="vote"
+                              params={{ memberNames: nonVoters }}
+                              buttonText="투표 독촉하기"
+                              className="text-xs py-1 px-2"
+                            />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>
+
+          {dateOptions.length === 0 || timeOptions.length === 0 ? (
+            <p className="text-gray-500 py-4 text-center">
+              {dateOptions.length === 0 && timeOptions.length === 0 
+                ? '아직 날짜와 시간이 설정되지 않았습니다.' 
+                : dateOptions.length === 0 
+                  ? '아직 날짜가 설정되지 않았습니다.' 
+                  : '아직 시간이 설정되지 않았습니다.'}
+            </p>
+          ) : (
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜 / 시간</th>
+                    {timeOptions.map(time => (
+                      <th key={time.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {time.time}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {dateOptions.map(dateOption => (
+                    <tr key={dateOption.id}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatDate(dateOption.date)}
+                      </td>
+                      {timeOptions.map(timeOption => {
+                        const voters = getVotesForDateAndTime(dateOption.id, timeOption.id);
+                        const hasVoted = selectedMember ? voters.includes(selectedMember) : false;
+                        
+                        return (
+                          <td key={timeOption.id} className="px-4 py-3 text-center">
+                            <div className="flex flex-col items-center">
+                              <div 
+                                className={`relative inline-flex justify-center items-center w-8 h-8 rounded-full mb-1 cursor-pointer border ${
+                                  hasVoted 
+                                    ? 'bg-blue-100 border-blue-400 text-blue-800' 
+                                    : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                                }`}
+                                onClick={() => selectedMember && toggleVote(dateOption.id, timeOption.id, selectedMember)}
+                                title={hasVoted ? '참석 불가능으로 변경' : '참석 가능으로 변경'}
+                              >
+                                {hasVoted ? '✓' : ''}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {voters.length > 0 ? `${voters.length}명` : ''}
+                              </div>
+                            </div>
+                            {voters.length > 0 && (
+                              <div className="hidden group-hover:block absolute z-10 bg-white p-2 rounded shadow-lg border">
+                                <div className="text-xs font-medium mb-1">참여 가능:</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {voters.map(voter => (
+                                    <span key={voter} className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-xs">
+                                      {voter}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           
           {/* 모든 날짜 불가능 옵션 추가 */}
           {(dateOptions.length > 0 && timeOptions.length > 0) && (
@@ -1358,7 +1402,7 @@ export default function Home() {
 
           {/* 최종 결정된 일정 표시 (가장 많은 투표를 받은 날짜) */}
           {getMostVotedOptions().length > 0 && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div id="vote-results" className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-green-800">
                   현재 가장 많은 투표를 받은 날짜
@@ -1473,7 +1517,7 @@ export default function Home() {
       </section>
       
       {/* 계비 관리 섹션 */}
-      <section className="bg-white p-6 rounded-lg shadow-md mb-6 border-l-4 border-yellow-500">
+      <section id="dues-section" className="bg-white p-6 rounded-lg shadow-md mb-6 border-l-4 border-yellow-500">
         <h2 className="text-xl font-semibold mb-4 text-yellow-700 flex items-center">
           <span className="mr-2">💰</span>
           계비 관리

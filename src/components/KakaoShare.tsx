@@ -25,6 +25,7 @@ const initKakao = () => {
 
 // 메시지 템플릿 생성 함수 (계비 독촉)
 const createDuesReminderTemplate = (memberName: string, amount: number, dueDate: string) => {
+  const baseUrl = window.location.origin;
   return {
     objectType: 'feed',
     content: {
@@ -32,16 +33,16 @@ const createDuesReminderTemplate = (memberName: string, amount: number, dueDate:
       description: `${memberName}님, ${amount.toLocaleString()}원 납부를 부탁드립니다.\n납부 기한: 오늘`,
       imageUrl: 'https://i.ibb.co/FbHj0zjF/money.png',
       link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
+        mobileWebUrl: `${baseUrl}?section=dues`,
+        webUrl: `${baseUrl}?section=dues`,
       },
     },
     buttons: [
       {
         title: '자세히 보기',
         link: {
-          mobileWebUrl: window.location.href,
-          webUrl: window.location.href,
+          mobileWebUrl: `${baseUrl}?section=dues`,
+          webUrl: `${baseUrl}?section=dues`,
         },
       },
     ],
@@ -51,23 +52,24 @@ const createDuesReminderTemplate = (memberName: string, amount: number, dueDate:
 // 메시지 템플릿 생성 함수 (투표 독촉)
 const createVoteReminderTemplate = (memberNames: string[]) => {
   const membersList = memberNames.join(', ');
+  const baseUrl = window.location.origin;
   return {
     objectType: 'feed',
     content: {
-      title: '투표 표해주세요!!',
+      title: '투표해주세요!!',
       description: `${membersList}님, 투표에 참여해주세요!`,
       imageUrl: 'https://i.ibb.co/yFDKfSb4/vote.png',
       link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
+        mobileWebUrl: `${baseUrl}?section=vote`,
+        webUrl: `${baseUrl}?section=vote`,
       },
     },
     buttons: [
       {
         title: '투표하러 가기',
         link: {
-          mobileWebUrl: window.location.href,
-          webUrl: window.location.href,
+          mobileWebUrl: `${baseUrl}?section=vote`,
+          webUrl: `${baseUrl}?section=vote`,
         },
       },
     ],
@@ -76,23 +78,24 @@ const createVoteReminderTemplate = (memberNames: string[]) => {
 
 // 메시지 템플릿 생성 함수 (투표 결과)
 const createVoteResultTemplate = (date: string, time: string, location: string, participantCount: number) => {
+  const baseUrl = window.location.origin;
   return {
     objectType: 'feed',
     content: {
       title: '모임 일정이 확정되었습니다',
-      description: `일시: ${date} ${time}\n장소: ${location}\n참여 가능 인원: ${participantCount}명`,
+      description: `일시: ${date} ${time}\n장소: ${location}`,
       imageUrl: 'https://i.ibb.co/5xKbwKKH/food.png',
       link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
+        mobileWebUrl: `${baseUrl}?section=schedule`,
+        webUrl: `${baseUrl}?section=schedule`,
       },
     },
     buttons: [
       {
         title: '모임 정보 보기',
         link: {
-          mobileWebUrl: window.location.href,
-          webUrl: window.location.href,
+          mobileWebUrl: `${baseUrl}?section=schedule`,
+          webUrl: `${baseUrl}?section=schedule`,
         },
       },
     ],
@@ -103,6 +106,7 @@ const createVoteResultTemplate = (date: string, time: string, location: string, 
 const createBirthdayTemplate = (memberName: string, birthDate: string) => {
   // ImgBB에 업로드된, 이미지 직접 링크로 변경
   const imageUrl = 'https://i.ibb.co/dwCNBs2S/14per.png';
+  const baseUrl = window.location.origin;
   
   return {
     objectType: 'feed',
@@ -112,10 +116,19 @@ const createBirthdayTemplate = (memberName: string, birthDate: string) => {
 다 같이 축하해요! 👏👏👏`,
       imageUrl: imageUrl,
       link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
+        mobileWebUrl: `${baseUrl}?section=birthday`,
+        webUrl: `${baseUrl}?section=birthday`,
       },
     },
+    buttons: [
+      {
+        title: '🎉🎉🎉🎉🎉',
+        link: {
+          mobileWebUrl: `${baseUrl}?section=birthday`,
+          webUrl: `${baseUrl}?section=birthday`,
+        },
+      },
+    ],
   };
 };
 
