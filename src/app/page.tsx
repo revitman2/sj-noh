@@ -522,26 +522,32 @@ export default function Home() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. 먼저 로컬 데이터 로드 (빠른 로딩)
-        const localData = loadFromLocal();
-        if (localData) {
-          setDateOptions((localData as any).dateOptions || []);
-          setTimeOptions((localData as any).timeOptions || []);
-          setVotes((localData as any).votes || {});
-          setDuesPayments((localData as any).duesPayments || []);
-          setExpenses((localData as any).expenses || []);
-          setSelectedLocation((localData as any).selectedLocation || null);
-        }
+        // 서버 데이터를 먼저 로드 (최신 데이터)
+        const serverData = await loadFromServer() as any;
         
-        // 2. 서버 데이터 로드 (최신 데이터)
-        const serverData = await loadFromServer();
         if (serverData) {
-          setDateOptions((serverData as any).dateOptions || []);
-          setTimeOptions((serverData as any).timeOptions || []);
-          setVotes((serverData as any).votes || {});
-          setDuesPayments((serverData as any).duesPayments || []);
-          setExpenses((serverData as any).expenses || []);
-          setSelectedLocation((serverData as any).selectedLocation || null);
+          console.log('서버에서 데이터를 불러왔습니다.');
+          setDateOptions(serverData.dateOptions || []);
+          setTimeOptions(serverData.timeOptions || []);
+          setVotes(serverData.votes || {});
+          setDuesPayments(serverData.duesPayments || []);
+          setExpenses(serverData.expenses || []);
+          setSelectedLocation(serverData.selectedLocation || null);
+          
+          // 서버 데이터를 로컬에도 저장 (백업)
+          saveToLocal('meetingData', serverData);
+        } else {
+          // 서버 데이터가 없을 경우에만 로컬 데이터 사용
+          console.log('서버 데이터가 없어 로컬 데이터를 불러옵니다.');
+          const localData = loadFromLocal() as any;
+          if (localData) {
+            setDateOptions(localData.dateOptions || []);
+            setTimeOptions(localData.timeOptions || []);
+            setVotes(localData.votes || {});
+            setDuesPayments(localData.duesPayments || []);
+            setExpenses(localData.expenses || []);
+            setSelectedLocation(localData.selectedLocation || null);
+          }
         }
         
         // 저장된 확정 날짜 불러오기
@@ -556,6 +562,17 @@ export default function Home() {
         }
       } catch (error) {
         console.error('Failed to load data:', error);
+        
+        // 서버 로드 실패 시 로컬 데이터 사용
+        const localData = loadFromLocal() as any;
+        if (localData) {
+          setDateOptions(localData.dateOptions || []);
+          setTimeOptions(localData.timeOptions || []);
+          setVotes(localData.votes || {});
+          setDuesPayments(localData.duesPayments || []);
+          setExpenses(localData.expenses || []);
+          setSelectedLocation(localData.selectedLocation || null);
+        }
       }
     }
     
@@ -564,7 +581,7 @@ export default function Home() {
 
   // 데이터 변경 시 저장
   useEffect(() => {
-    // 처음 로드 시에는 저장 안함
+    // 처음 로드 시에는 저장 안함 (빈 데이터 저장 방지)
     if (!dateOptions || dateOptions.length === 0) return;
     
     const data = {
@@ -576,15 +593,54 @@ export default function Home() {
       selectedLocation
     };
     
-    // 로컬 스토리지에 저장 (항상)
+    // 로컬 스토리지에 저장 (항상, 백업용)
     saveToLocal('meetingData', data);
     
-    // 서버에 저장 (2초 간격으로)
-    const timer = setTimeout(() => {
-      saveToServer(data);
-    }, 2000);
+    // 서버에 즉시 저장 (타이머 제거하고 바로 저장)
+    saveToServer(data)
+      .then(success => {
+        if (success) {
+          console.log('서버에 데이터가 성공적으로 저장되었습니다.');
+        } else {
+          console.warn('서버 저장에 실패했습니다. 로컬 백업만 완료되었습니다.');
+        }
+      })
+      .catch(e => console.error('서버 저장 에러:', e));
     
-    return () => clearTimeout(timer);
+  }, [dateOptions, timeOptions, votes, duesPayments, expenses, selectedLocation]);
+
+  // 페이지 언로드(닫기) 시 저장
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // 페이지 닫기 전 마지막으로 한번 더 저장
+      const data = {
+        dateOptions,
+        timeOptions,
+        votes,
+        duesPayments,
+        expenses,
+        selectedLocation
+      };
+      
+      // 로컬 저장 (동기적)
+      saveToLocal('meetingData', data);
+      
+      // 서버 저장 시도 - sendBeacon 사용 (비동기지만 페이지 닫혀도 실행됨)
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify({
+          id: 'life-meeting',
+          data
+        })], { type: 'application/json' });
+        
+        navigator.sendBeacon('/api/save-data', blob);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [dateOptions, timeOptions, votes, duesPayments, expenses, selectedLocation]);
 
   // 페이지 초기화
@@ -610,7 +666,12 @@ export default function Home() {
     
     // 저장
     saveToLocal('meetingData', resetData);
-    saveToServer(resetData);
+    saveToServer(resetData)
+      .then(success => {
+        if (!success) {
+          console.warn('서버 초기화 실패. 다시 시도해주세요.');
+        }
+      });
     
     alert('모든 데이터가 초기화되었습니다.');
   };
@@ -631,6 +692,37 @@ export default function Home() {
     saveToServer(data)
       .then(success => alert(`저장 ${success ? '성공' : '실패'}`))
       .catch(e => alert(`저장 에러: ${e.message}`));
+  };
+
+  // 데이터 상태 확인
+  const checkDataStatus = async () => {
+    try {
+      // 현재 서버 데이터 가져오기
+      const serverData = await loadFromServer('life-meeting') as any;
+      
+      // 현재 로컬 데이터 가져오기
+      const localData = loadFromLocal('meetingData') as any;
+      
+      // 데이터 비교
+      const serverTimestamp = serverData?._lastUpdated || 'None';
+      const localTimestamp = localData?._saveTime || 'None';
+      
+      const status = `
+데이터 상태:
+------------------------------
+서버 데이터: ${serverData ? '있음' : '없음'}
+서버 마지막 업데이트: ${serverTimestamp}
+------------------------------
+로컬 데이터: ${localData ? '있음' : '없음'}
+로컬 마지막 저장: ${localTimestamp}
+------------------------------
+정보: ${Object.keys(votes).length}명 투표 / ${duesPayments.length}명 회비 / ${expenses.length}개 지출
+      `;
+      
+      alert(status);
+    } catch (error) {
+      alert(`데이터 확인 실패: ${(error as Error).message}`);
+    }
   };
 
   // 생일까지 남은 일수를 계산하는 함수
@@ -1898,6 +1990,22 @@ export default function Home() {
           mapType={currentMapType}
         />
       )}
+
+      <div className="w-full p-2">
+        <button onClick={resetState} className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+          모든 데이터 초기화
+        </button>
+      </div>
+      <div className="w-full p-2">
+        <button onClick={saveDebugInfo} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          디버깅 정보 저장
+        </button>
+      </div>
+      <div className="w-full p-2">
+        <button onClick={checkDataStatus} className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+          데이터 상태 확인
+        </button>
+      </div>
     </main>
   );
 }
