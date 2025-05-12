@@ -10,11 +10,13 @@ export async function POST(request: Request) {
   try {
     // request에서 JSON 데이터 추출
     const body = await request.json();
-    const { id = 'life-meeting-v2', data } = body;
+    const { id = 'life-meeting', data } = body;
     
     if (!data) {
       return NextResponse.json({ success: false, error: 'No data provided' }, { status: 400 });
     }
+    
+    console.log(`API - 서버에 데이터 저장 시도 - ID: ${id}`);
     
     // 데이터에 타임스탬프 추가
     const dataWithTimestamp = {
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
     
+    console.log('API - 서버에 데이터 저장 성공');
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
     console.error('Error in save-data API route:', error);

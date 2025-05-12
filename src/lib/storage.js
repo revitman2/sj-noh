@@ -7,11 +7,13 @@ import { supabase } from './supabase';
 /**
  * 서버에 데이터 저장
  * @param {Object} data - 저장할 데이터
- * @param {string} [id='life-meeting-v2'] - 데이터 저장 ID
+ * @param {string} [id='life-meeting'] - 데이터 저장 ID
  * @returns {Promise<boolean>} 성공 여부
  */
-export async function saveToServer(data, id = 'life-meeting-v2') {
+export async function saveToServer(data, id = 'life-meeting') {
   try {
+    console.log(`서버에 데이터 저장 시도 - ID: ${id}`, data);
+    
     // 저장 전 타임스탬프 추가
     const dataWithTimestamp = {
       ...data,
@@ -28,6 +30,7 @@ export async function saveToServer(data, id = 'life-meeting-v2') {
       return false;
     }
     
+    console.log('서버에 데이터 저장 성공');
     return true;
   } catch (error) {
     console.error('서버 저장 실패:', error);
@@ -37,11 +40,13 @@ export async function saveToServer(data, id = 'life-meeting-v2') {
 
 /**
  * 서버에서 데이터 불러오기
- * @param {string} [id='life-meeting-v2'] - 데이터 ID
+ * @param {string} [id='life-meeting'] - 데이터 ID
  * @returns {Promise<Object|null>} 불러온 데이터 또는 null
  */
-export async function loadFromServer(id = 'life-meeting-v2') {
+export async function loadFromServer(id = 'life-meeting') {
   try {
+    console.log(`서버에서 데이터 불러오기 시도 - ID: ${id}`);
+    
     const { data, error } = await supabase
       .from('meeting_data')
       .select('data')
@@ -59,6 +64,7 @@ export async function loadFromServer(id = 'life-meeting-v2') {
       return null;
     }
     
+    console.log('서버에서 데이터 불러오기 성공:', data?.data);
     return data?.data;
   } catch (error) {
     console.error('서버 불러오기 실패:', error);

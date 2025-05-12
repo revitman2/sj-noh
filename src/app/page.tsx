@@ -613,7 +613,7 @@ export default function Home() {
       // 서버 저장 시도 - sendBeacon 사용 (비동기지만 페이지 닫혀도 실행됨)
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify({
-          id: 'life-meeting-v2',
+          id: 'life-meeting',
           data
         })], { type: 'application/json' });
         
