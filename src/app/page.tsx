@@ -1991,21 +1991,29 @@ export default function Home() {
         />
       )}
 
-      <div className="w-full p-2">
-        <button onClick={resetState} className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-          모든 데이터 초기화
-        </button>
-      </div>
-      <div className="w-full p-2">
-        <button onClick={saveDebugInfo} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-          디버깅 정보 저장
-        </button>
-      </div>
-      <div className="w-full p-2">
-        <button onClick={checkDataStatus} className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-          데이터 상태 확인
-        </button>
-      </div>
+      {/* 관리자(호스트) 전용 기능 */}
+      {selectedMember === HOST_NAME && (
+        <div className="mt-8 border-t-2 border-gray-200 pt-4">
+          <h3 className="text-xl font-semibold mb-4 text-center text-gray-700">관리자 전용 기능</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-2">
+              <button onClick={resetState} className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                모든 데이터 초기화
+              </button>
+            </div>
+            <div className="p-2">
+              <button onClick={saveDebugInfo} className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                디버깅 정보 저장
+              </button>
+            </div>
+            <div className="p-2">
+              <button onClick={checkDataStatus} className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                데이터 상태 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
