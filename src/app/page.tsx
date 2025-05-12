@@ -535,14 +535,14 @@ export default function Home() {
         // 서버에서만 데이터 로드
         const serverData = await loadFromServer() as any;
         
-        if (serverData) {
+      if (serverData) {
           console.log('서버에서 데이터를 불러왔습니다.');
-          setDateOptions(serverData.dateOptions || []);
-          setTimeOptions(serverData.timeOptions || []);
-          setVotes(serverData.votes || {});
-          setDuesPayments(serverData.duesPayments || []);
-          setExpenses(serverData.expenses || []);
-          setSelectedLocation(serverData.selectedLocation || null);
+        setDateOptions(serverData.dateOptions || []);
+        setTimeOptions(serverData.timeOptions || []);
+        setVotes(serverData.votes || {});
+        setDuesPayments(serverData.duesPayments || []);
+        setExpenses(serverData.expenses || []);
+        setSelectedLocation(serverData.selectedLocation || null);
         } else {
           console.log('서버에 데이터가 없습니다. 초기 상태로 시작합니다.');
         }
@@ -570,11 +570,10 @@ export default function Home() {
     loadData();
   }, []);
 
-  // 데이터 변경 시 저장
+  // 페이지 언로드(닫기) 시 저장
   useEffect(() => {
-    // 처음 로드 시에는 저장 안함 (빈 데이터 저장 방지)
-    if (!dateOptions || dateOptions.length === 0) return;
-    
+    const handleBeforeUnload = () => {
+      // 페이지 닫기 전 마지막으로 한번 더 저장
     const data = {
       dateOptions,
       timeOptions,
@@ -584,32 +583,6 @@ export default function Home() {
       selectedLocation
     };
     
-    // 서버에만 즉시 저장
-    saveToServer(data)
-      .then(success => {
-        if (success) {
-          console.log('서버에 데이터가 성공적으로 저장되었습니다.');
-        } else {
-          console.warn('서버 저장에 실패했습니다.');
-        }
-      })
-      .catch(e => console.error('서버 저장 에러:', e));
-    
-  }, [dateOptions, timeOptions, votes, duesPayments, expenses, selectedLocation]);
-
-  // 페이지 언로드(닫기) 시 저장
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // 페이지 닫기 전 마지막으로 한번 더 저장
-      const data = {
-        dateOptions,
-        timeOptions,
-        votes,
-        duesPayments,
-        expenses,
-        selectedLocation
-      };
-      
       // 서버 저장 시도 - sendBeacon 사용 (비동기지만 페이지 닫혀도 실행됨)
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify({
@@ -666,19 +639,19 @@ export default function Home() {
 
   // 디버깅 정보 저장
   const saveDebugInfo = () => {
-    const data = {
+                    const data = {
       selectedLocation,
-      dateOptions,
-      timeOptions,
-      votes,
-      duesPayments,
-      expenses,
+                      dateOptions,
+                      timeOptions,
+                      votes,
+                      duesPayments,
+                      expenses,
       _saveTime: new Date().toISOString()
-    };
+                    };
     
-    saveToServer(data)
-      .then(success => alert(`저장 ${success ? '성공' : '실패'}`))
-      .catch(e => alert(`저장 에러: ${e.message}`));
+                    saveToServer(data)
+                      .then(success => alert(`저장 ${success ? '성공' : '실패'}`))
+                      .catch(e => alert(`저장 에러: ${e.message}`));
   };
 
   // 데이터 상태 확인
@@ -843,6 +816,80 @@ export default function Home() {
     };
   }, []);
   
+  // 수동 저장 함수 - 호스트용
+  const saveHostData = async () => {
+    // 호스트만 사용 가능
+    if (!isHost()) {
+      alert('호스트만 데이터를 저장할 수 있습니다.');
+      return;
+    }
+    
+    const data = {
+      dateOptions,
+      timeOptions,
+      votes,
+      duesPayments,
+      expenses,
+      selectedLocation
+    };
+    
+    try {
+      const success = await saveToServer(data);
+      if (success) {
+        setShowSaveSuccess(true);
+        setTimeout(() => {
+          setShowSaveSuccess(false);
+        }, 3000);
+      } else {
+        alert('데이터 저장에 실패했습니다. 다시 시도해주세요.');
+      }
+    } catch (err) {
+      alert(`저장 중 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
+    }
+  };
+
+  // 수동 저장 함수 - 투표만 (모든 사용자)
+  const saveVoteData = async () => {
+    if (!selectedMember) {
+      alert('먼저 이름을 선택해주세요.');
+      return;
+    }
+    
+    try {
+      // 현재 서버에서 최신 데이터 가져오기
+      const serverData = await loadFromServer() as any;
+      
+      // 현재 투표 데이터
+      const dataToSave = {
+        ...(serverData || {}),
+        dateOptions,
+        timeOptions,
+        votes,
+        _lastSaved: new Date().toISOString(),
+        _savedBy: selectedMember
+      };
+      
+      const success = await saveToServer(dataToSave);
+      if (success) {
+        setShowSaveSuccess(true);
+        setTimeout(() => {
+          setShowSaveSuccess(false);
+        }, 3000);
+      } else {
+        alert('투표 저장에 실패했습니다. 다시 시도해주세요.');
+      }
+    } catch (err) {
+      alert(`저장 중 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
+    }
+  };
+  
+  // 저장 성공 메시지 컴포넌트
+  const SaveSuccessMessage = () => (
+    <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50">
+      데이터가 성공적으로 저장되었습니다!
+            </div>
+  );
+  
   return (
     <main className="min-h-screen p-4 max-w-4xl mx-auto pb-20 bg-gray-50">
       <h1 className="text-2xl font-bold mb-8 text-center py-4 border-b-2 border-blue-500">삶의 질 동기모임</h1>
@@ -853,37 +900,37 @@ export default function Home() {
           <span className="mr-2">👥</span>
           참여자 선택
         </h2>
-        <p className="mb-4 text-gray-600">
-          본인의 이름을 선택하여 모임 날짜에 투표해주세요.
-        </p>
-        <div className="max-w-xs">
-          <select
-            value={selectedMember}
-            onChange={(e) => setSelectedMember(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
-          >
-            <option value="">-- 본인 이름 선택 --</option>
-            {MEMBERS.map((member) => (
-              <option key={member} value={member}>
-                {member}{member === HOST_NAME ? ' (호스트)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-        {selectedMember && (
-          <div className="mt-4 flex items-center text-sm text-gray-600">
-            <span className="mr-2">
-              {selectedMember === HOST_NAME ? '호스트' : '참여자'}: {selectedMember}
-            </span>
-            <button
-              onClick={() => setSelectedMember('')}
-              className="text-blue-600 hover:text-blue-800 hover:underline"
+          <p className="mb-4 text-gray-600">
+            본인의 이름을 선택하여 모임 날짜에 투표해주세요.
+          </p>
+          <div className="max-w-xs">
+            <select
+              value={selectedMember}
+              onChange={(e) => setSelectedMember(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white"
             >
-              변경
-            </button>
+              <option value="">-- 본인 이름 선택 --</option>
+              {MEMBERS.map((member) => (
+                <option key={member} value={member}>
+                  {member}{member === HOST_NAME ? ' (호스트)' : ''}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-      </section>
+          {selectedMember && (
+            <div className="mt-4 flex items-center text-sm text-gray-600">
+              <span className="mr-2">
+                {selectedMember === HOST_NAME ? '호스트' : '참여자'}: {selectedMember}
+              </span>
+              <button
+                onClick={() => setSelectedMember('')}
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                변경
+              </button>
+            </div>
+          )}
+        </section>
       
       {/* 생일 알림 모달 */}
       {showBirthdayAlert && (
@@ -1015,11 +1062,11 @@ export default function Home() {
                 );
               })}
             </div>
-          </div>
-        )}
-      </section>
-      
-      {/* 모임 일정 섹션 */}
+            </div>
+          )}
+        </section>
+        
+        {/* 모임 일정 섹션 */}
       <section id="schedule-section" className="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-green-500">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl sm:text-2xl font-semibold text-green-700 flex items-center">
@@ -1077,77 +1124,92 @@ export default function Home() {
             </button>
           )}
         </div>
-        <div className="space-y-6">
-          {/* 장소 설정 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              모임 장소
-            </label>
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="장소를 검색하거나 지도에서 선택하세요"
-                value={selectedLocation?.name || ''}
-                readOnly
-              />
-              {selectedMember === HOST_NAME ? (
-                <div className="flex gap-2">
-                  <button 
-                    className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm"
-                    onClick={() => {
-                      setCurrentMapType('kakao');
-                      setMapModalOpen(true);
-                    }}
-                  >
-                    카카오맵
-                  </button>
-                  <button 
-                    className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
-                    onClick={() => {
-                      setCurrentMapType('naver');
-                      setMapModalOpen(true);
-                    }}
-                  >
-                    네이버맵
-                  </button>
-                </div>
-              ) : selectedLocation && (
-                <div className="flex gap-2">
-                  {selectedLocation.kakaoLink && (
-                    <a
-                      href={selectedLocation.kakaoLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center text-sm"
+          <div className="space-y-6">
+            {/* 장소 설정 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                모임 장소
+              </label>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="장소를 검색하거나 지도에서 선택하세요"
+                  value={selectedLocation?.name || ''}
+                  readOnly
+                />
+                {selectedMember === HOST_NAME ? (
+                  <div className="flex gap-2">
+                    <button 
+                      className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm"
+                      onClick={() => {
+                        setCurrentMapType('kakao');
+                        setMapModalOpen(true);
+                      }}
                     >
-                      카카오맵으로 보기
-                    </a>
-                  )}
-                  {selectedLocation.naverLink && (
-                    <a
-                      href={selectedLocation.naverLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-center text-sm"
+                      카카오맵
+                    </button>
+                    <button 
+                      className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                      onClick={() => {
+                        setCurrentMapType('naver');
+                        setMapModalOpen(true);
+                      }}
                     >
-                      네이버맵으로 보기
-                    </a>
-                  )}
-                </div>
-              )}
+                      네이버맵
+                    </button>
+                  </div>
+                ) : selectedLocation && (
+                  <div className="flex gap-2">
+                    {selectedLocation.kakaoLink && (
+                      <a
+                        href={selectedLocation.kakaoLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-center text-sm"
+                      >
+                        카카오맵으로 보기
+                      </a>
+                    )}
+                    {selectedLocation.naverLink && (
+                      <a
+                        href={selectedLocation.naverLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-center text-sm"
+                      >
+                        네이버맵으로 보기
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* 호스트 전용 설정 */}
+          {/* 장소 선택 후 호스트만 볼 수 있는 저장 버튼 추가 */}
           {selectedMember === HOST_NAME && (
-            <div className="space-y-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium">모임 시간 & 날짜 설정 (호스트 전용)</h3>
-              
-              {/* 시간 설정 */}
-              <div>
-                <h4 className="text-md font-medium mb-2">1. 모임 시간 설정</h4>
-                <div className="flex gap-2 mb-2">
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={saveHostData}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium flex items-center shadow-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                장소 정보 저장
+              </button>
+            </div>
+          )}
+
+            {/* 호스트 전용 설정 */}
+            {selectedMember === HOST_NAME && (
+              <div className="space-y-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-medium">모임 시간 & 날짜 설정 (호스트 전용)</h3>
+                
+                {/* 시간 설정 */}
+                <div>
+                  <h4 className="text-md font-medium mb-2">1. 모임 시간 설정</h4>
+                  <div className="flex gap-2 mb-2">
                   <div className="relative w-48">
                     <select
                       className="w-full px-3 py-2 border border-gray-300 rounded-md appearance-none cursor-pointer"
@@ -1174,81 +1236,94 @@ export default function Home() {
                       </svg>
                     </div>
                   </div>
-                  <button 
-                    onClick={addTimeOption}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                    disabled={!timeInput}
-                  >
-                    추가
-                  </button>
+                    <button 
+                      onClick={addTimeOption}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                      disabled={!timeInput}
+                    >
+                      추가
+                    </button>
+                  </div>
+                  
+                  {/* 추가된 시간 목록 */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {timeOptions.map((time) => (
+                      <div key={time.id} className="inline-flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
+                        <span>{time.time}</span>
+                        <button
+                          onClick={() => removeTimeOption(time.id)}
+                          className="text-red-500 hover:text-red-700 ml-1"
+                          title="삭제"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {timeOptions.length === 0 && (
+                    <p className="text-sm text-gray-500 mt-1">먼저 모임 가능 시간을 설정해주세요.</p>
+                  )}
                 </div>
                 
-                {/* 추가된 시간 목록 */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {timeOptions.map((time) => (
-                    <div key={time.id} className="inline-flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
-                      <span>{time.time}</span>
-                      <button
-                        onClick={() => removeTimeOption(time.id)}
-                        className="text-red-500 hover:text-red-700 ml-1"
-                        title="삭제"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                {/* 날짜 설정 */}
+                <div>
+                  <h4 className="text-md font-medium mb-2">2. 모임 가능 날짜 설정</h4>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="date"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      value={dateInput}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDateInput(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                    <button 
+                      onClick={addDateOption}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                      disabled={!dateInput}
+                    >
+                      추가
+                    </button>
+                  </div>
+                  
+                  {/* 추가된 날짜 목록 */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {dateOptions.map((date) => (
+                      <div key={date.id} className="inline-flex items-center gap-1 bg-green-50 px-3 py-1 rounded-md border border-green-200">
+                        <span>{formatDate(date.date)}</span>
+                        <button
+                          onClick={() => removeDateOption(date.id)}
+                          className="text-red-500 hover:text-red-700 ml-1"
+                          title="삭제"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {dateOptions.length === 0 && (
+                    <p className="text-sm text-gray-500 mt-1">모임 가능 날짜를 설정해주세요.</p>
+                  )}
                 </div>
-                {timeOptions.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-1">먼저 모임 가능 시간을 설정해주세요.</p>
-                )}
+
+              {/* 호스트 전용 저장 버튼 추가 */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={saveHostData}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium flex items-center shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  날짜/시간 저장
+                </button>
+                </div>
               </div>
-              
-              {/* 날짜 설정 */}
-              <div>
-                <h4 className="text-md font-medium mb-2">2. 모임 가능 날짜 설정</h4>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="date"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                    value={dateInput}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDateInput(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                  <button 
-                    onClick={addDateOption}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                    disabled={!dateInput}
-                  >
-                    추가
-                  </button>
-                </div>
-                
-                {/* 추가된 날짜 목록 */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {dateOptions.map((date) => (
-                    <div key={date.id} className="inline-flex items-center gap-1 bg-green-50 px-3 py-1 rounded-md border border-green-200">
-                      <span>{formatDate(date.date)}</span>
-                      <button
-                        onClick={() => removeDateOption(date.id)}
-                        className="text-red-500 hover:text-red-700 ml-1"
-                        title="삭제"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {dateOptions.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-1">모임 가능 날짜를 설정해주세요.</p>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* 날짜 및 시간 투표 */}
+            )}
+
+            {/* 날짜 및 시간 투표 */}
           <div id="vote-section" className="space-y-4 p-4 sm:p-6 bg-white rounded-lg shadow-md border-l-4 border-blue-500 mb-8">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">날짜 투표</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">날짜 투표</h3>
               
               {/* 이름 선택 콤보박스 추가 */}
               <div className="max-w-xs">
@@ -1321,80 +1396,80 @@ export default function Home() {
                     );
                   })()}
                 </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {dateOptions.length === 0 || timeOptions.length === 0 ? (
-            <p className="text-gray-500 py-4 text-center">
-              {dateOptions.length === 0 && timeOptions.length === 0 
-                ? '아직 날짜와 시간이 설정되지 않았습니다.' 
-                : dateOptions.length === 0 
-                  ? '아직 날짜가 설정되지 않았습니다.' 
-                  : '아직 시간이 설정되지 않았습니다.'}
-            </p>
-          ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜 / 시간</th>
-                    {timeOptions.map(time => (
-                      <th key={time.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {time.time}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {dateOptions.map(dateOption => (
-                    <tr key={dateOption.id}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatDate(dateOption.date)}
-                      </td>
-                      {timeOptions.map(timeOption => {
-                        const voters = getVotesForDateAndTime(dateOption.id, timeOption.id);
-                        const hasVoted = selectedMember ? voters.includes(selectedMember) : false;
-                        
-                        return (
-                          <td key={timeOption.id} className="px-4 py-3 text-center">
-                            <div className="flex flex-col items-center">
-                              <div 
-                                className={`relative inline-flex justify-center items-center w-8 h-8 rounded-full mb-1 cursor-pointer border ${
-                                  hasVoted 
-                                    ? 'bg-blue-100 border-blue-400 text-blue-800' 
-                                    : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
-                                }`}
-                                onClick={() => selectedMember && toggleVote(dateOption.id, timeOption.id, selectedMember)}
-                                title={hasVoted ? '참석 불가능으로 변경' : '참석 가능으로 변경'}
-                              >
-                                {hasVoted ? '✓' : ''}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {voters.length > 0 ? `${voters.length}명` : ''}
-                              </div>
-                            </div>
-                            {voters.length > 0 && (
-                              <div className="hidden group-hover:block absolute z-10 bg-white p-2 rounded shadow-lg border">
-                                <div className="text-xs font-medium mb-1">참여 가능:</div>
-                                <div className="flex flex-wrap gap-1">
-                                  {voters.map(voter => (
-                                    <span key={voter} className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-xs">
-                                      {voter}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+              
+              {dateOptions.length === 0 || timeOptions.length === 0 ? (
+                <p className="text-gray-500 py-4 text-center">
+                  {dateOptions.length === 0 && timeOptions.length === 0 
+                    ? '아직 날짜와 시간이 설정되지 않았습니다.' 
+                    : dateOptions.length === 0 
+                      ? '아직 날짜가 설정되지 않았습니다.' 
+                      : '아직 시간이 설정되지 않았습니다.'}
+                </p>
+              ) : (
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜 / 시간</th>
+                        {timeOptions.map(time => (
+                          <th key={time.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {time.time}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {dateOptions.map(dateOption => (
+                        <tr key={dateOption.id}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {formatDate(dateOption.date)}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                          {timeOptions.map(timeOption => {
+                            const voters = getVotesForDateAndTime(dateOption.id, timeOption.id);
+                            const hasVoted = selectedMember ? voters.includes(selectedMember) : false;
+                            
+                            return (
+                              <td key={timeOption.id} className="px-4 py-3 text-center">
+                                <div className="flex flex-col items-center">
+                                  <div 
+                                    className={`relative inline-flex justify-center items-center w-8 h-8 rounded-full mb-1 cursor-pointer border ${
+                                      hasVoted 
+                                        ? 'bg-blue-100 border-blue-400 text-blue-800' 
+                                        : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                                    }`}
+                                    onClick={() => selectedMember && toggleVote(dateOption.id, timeOption.id, selectedMember)}
+                                    title={hasVoted ? '참석 불가능으로 변경' : '참석 가능으로 변경'}
+                                  >
+                                    {hasVoted ? '✓' : ''}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {voters.length > 0 ? `${voters.length}명` : ''}
+                                  </div>
+                                </div>
+                                {voters.length > 0 && (
+                                  <div className="hidden group-hover:block absolute z-10 bg-white p-2 rounded shadow-lg border">
+                                    <div className="text-xs font-medium mb-1">참여 가능:</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {voters.map(voter => (
+                                        <span key={voter} className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded text-xs">
+                                          {voter}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           
           {/* 모든 날짜 불가능 옵션 추가 */}
           {(dateOptions.length > 0 && timeOptions.length > 0) && (
@@ -1446,7 +1521,7 @@ export default function Home() {
                           {index < 3 ? voter : index === 3 ? `+${votes['all-dates-unavailable'].length - 3}` : null}
                         </span>
                       )).slice(0, 4)}
-                    </div>
+            </div>
                   </div>
                 )}
               </label>
@@ -1457,36 +1532,7 @@ export default function Home() {
           {selectedMember && (
             <div className="mt-4 flex justify-center">
               <button
-                onClick={() => {
-                  // 현재 상태를 서버에 저장
-                  const data = {
-                    selectedLocation,
-                    dateOptions,
-                    timeOptions,
-                    votes,
-                    duesPayments,
-                    expenses,
-                    _saveTime: new Date().toISOString()
-                  };
-                  
-                  saveToServer(data)
-                    .then(success => {
-                      if (success) {
-                        // 저장 성공 표시
-                        setShowSaveSuccess(true);
-                        
-                        // 3초 후 메시지 숨기기
-                        setTimeout(() => {
-                          setShowSaveSuccess(false);
-                        }, 3000);
-                      } else {
-                        alert('저장에 실패했습니다. 다시 시도해주세요.');
-                      }
-                    })
-                    .catch(err => {
-                      alert(`저장 중 오류 발생: ${err.message}`);
-                    });
-                }}
+                onClick={saveVoteData}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center shadow-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1497,15 +1543,11 @@ export default function Home() {
             </div>
           )}
           
-          {/* 저장 성공 메시지 */}
-          {showSaveSuccess && (
-            <div className="mt-3 p-2 bg-green-100 border border-green-200 rounded-md text-center text-green-700 animate-pulse">
-              투표 정보가 성공적으로 저장되었습니다!
-            </div>
-          )}
+          {/* 저장 성공 메시지 - 조건부 렌더링으로 수정 */}
+          {showSaveSuccess && <SaveSuccessMessage />}
 
-          {/* 최종 결정된 일정 표시 (가장 많은 투표를 받은 날짜) */}
-          {getMostVotedOptions().length > 0 && (
+          {/* 최종 결과 표시 (가장 많은 투표를 받은 날짜) */}
+            {getMostVotedOptions().length > 0 && (
             <div id="vote-results" className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-green-800">
@@ -1558,13 +1600,13 @@ export default function Home() {
                   <div key={`${option.date}-${option.time}`} className={`${index > 0 ? "mt-4 pt-4 border-t border-green-200" : "mt-2"} ${isConfirmed ? "bg-yellow-50 p-2 rounded-md" : ""}`}>
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="text-xl">
-                          {formatDate(option.date)} {option.time}
+                    <div className="text-xl">
+                      {formatDate(option.date)} {option.time}
                           {isConfirmed && <span className="ml-2 text-yellow-600 font-bold">(확정됨)</span>}
-                        </div>
-                        <div className="text-sm text-gray-600 mb-2">
-                          {option.votes}명 참여 가능
-                        </div>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      {option.votes}명 참여 가능
+                    </div>
                       </div>
                       
                       {/* 호스트만 볼 수 있는 확정 버튼 */}
@@ -1615,32 +1657,32 @@ export default function Home() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
-      </section>
-      
-      {/* 계비 관리 섹션 */}
+              </div>
+            )}
+          </div>
+        </section>
+        
+        {/* 계비 관리 섹션 */}
       <section id="dues-section" className="bg-white p-6 rounded-lg shadow-md mb-6 border-l-4 border-yellow-500">
         <h2 className="text-xl font-semibold mb-4 text-yellow-700 flex items-center">
           <span className="mr-2">💰</span>
           계비 관리
         </h2>
-        
-        {/* 연도 선택 */}
+          
+          {/* 연도 선택 */}
         <div className="mb-4">
           <label className="block mb-2">연도 선택</label>
-          <select
+              <select
             className="w-48 p-2 border rounded"
-            value={selectedYear}
+                value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          >
+              >
             {[2023, 2024, 2025, 2026, 2027].map((year) => (
-              <option key={year} value={year}>{year}년</option>
-            ))}
-          </select>
-        </div>
-        
+                  <option key={year} value={year}>{year}년</option>
+                ))}
+              </select>
+          </div>
+          
         {/* 계비 요약 정보 */}
         <div className="mb-4">
           <h3 className="font-semibold mb-2">{selectedYear}년 계비 현황</h3>
@@ -1659,35 +1701,35 @@ export default function Home() {
             <div className="bg-red-50 p-3 rounded">
               <p className="text-sm">미납된 총액:</p>
               <p className="font-semibold">{formatCurrency(calculateYearlyDues(selectedYear).unpaidDues)}</p>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* 연간 잔액 요약 */}
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-6">
-          <h3 className="text-lg font-medium mb-3 text-yellow-800">{selectedYear}년 계비 잔액</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="font-medium">납부된 총액:</span>
-              <span className="text-green-700">{formatCurrency(calculateYearlyDues(selectedYear).paidDues)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">지출 총액:</span>
-              <span className="text-red-700">{formatCurrency(calculateYearlyExpenses(selectedYear))}</span>
-            </div>
-            <div className="border-t pt-2 flex justify-between">
-              <span className="font-medium">잔액:</span>
-              <span className={`font-bold ${
-                calculateYearlyBalance(selectedYear) >= 0 ? 'text-green-700' : 'text-red-700'
-              }`}>
-                {formatCurrency(calculateYearlyBalance(selectedYear))}
-              </span>
+          
+          {/* 연간 잔액 요약 */}
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-6">
+            <h3 className="text-lg font-medium mb-3 text-yellow-800">{selectedYear}년 계비 잔액</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">납부된 총액:</span>
+                <span className="text-green-700">{formatCurrency(calculateYearlyDues(selectedYear).paidDues)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">지출 총액:</span>
+                <span className="text-red-700">{formatCurrency(calculateYearlyExpenses(selectedYear))}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span className="font-medium">잔액:</span>
+                <span className={`font-bold ${
+                  calculateYearlyBalance(selectedYear) >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {formatCurrency(calculateYearlyBalance(selectedYear))}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* 월별 납부 현황 테이블 */}
-        <div className="mb-8">
+          
+          {/* 월별 납부 현황 테이블 */}
+          <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-medium">월별 납부 현황</h3>
             
@@ -1704,261 +1746,291 @@ export default function Home() {
               />
             )}
           </div>
-          
-          {/* 월별 일괄 완납 버튼 (호스트 전용) */}
-          {selectedMember === HOST_NAME && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <h4 className="text-sm font-medium mb-2">월별 일괄 완납 처리 (세로 처리)</h4>
-              <div className="flex flex-wrap gap-2">
-                {MONTHS.map((month, index) => {
-                  const monthNumber = index + 1;
-                  const isAllPaid = MEMBERS.every(member => 
-                    isDuesPaid(member, selectedYear, monthNumber)
-                  );
-                  
-                  return (
-                    <button
-                      key={month}
-                      onClick={() => handleBulkPayment(monthNumber)}
-                      className={`px-3 py-1 rounded-md text-sm ${
-                        isAllPaid 
-                          ? 'bg-green-100 text-green-800 border border-green-300' 
-                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                      title={isAllPaid ? '모두 납부 취소' : '모두 납부 처리'}
-                    >
-                      {month} {isAllPaid ? '✓' : ''}
-                    </button>
-                  );
-                })}
+            
+            {/* 월별 일괄 완납 버튼 (호스트 전용) */}
+            {selectedMember === HOST_NAME && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium mb-2">월별 일괄 완납 처리 (세로 처리)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {MONTHS.map((month, index) => {
+                    const monthNumber = index + 1;
+                    const isAllPaid = MEMBERS.every(member => 
+                      isDuesPaid(member, selectedYear, monthNumber)
+                    );
+                    
+                    return (
+                      <button
+                        key={month}
+                        onClick={() => handleBulkPayment(monthNumber)}
+                        className={`px-3 py-1 rounded-md text-sm ${
+                          isAllPaid 
+                            ? 'bg-green-100 text-green-800 border border-green-300' 
+                            : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                        }`}
+                        title={isAllPaid ? '모두 납부 취소' : '모두 납부 처리'}
+                      >
+                        {month} {isAllPaid ? '✓' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* 계원별 1년치 일괄 완납 버튼 (호스트 전용) */}
-          {selectedMember === HOST_NAME && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <h4 className="text-sm font-medium mb-2">계원별 1년치 일괄 완납 처리 (가로 처리)</h4>
-              <div className="flex flex-wrap gap-2">
-                {MEMBERS.map((member) => {
-                  // 해당 계원의 전체 납부 상태 확인
-                  const isAllPaid = Array.from({ length: 12 }, (_, i) => i + 1)
-                    .every(month => isDuesPaid(member, selectedYear, month));
-                  
-                  return (
-                    <button
-                      key={member}
-                      onClick={() => handleMemberYearlyPayment(member)}
-                      className={`px-3 py-1 rounded-md text-sm ${
-                        isAllPaid 
-                          ? 'bg-blue-100 text-blue-800 border border-blue-300' 
-                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                      }`}
-                      title={isAllPaid ? '모든 납부 취소' : '1년치 납부 처리'}
-                    >
-                      {member} {isAllPaid ? '✓' : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
-                    이름
-                  </th>
-                  {MONTHS.map((month, index) => (
-                    <th key={month} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {month}
-                    </th>
-                  ))}
-                  <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    납부합계
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {MEMBERS.map((member) => {
-                  // 해당 회원의 연간 납부 횟수
-                  const paidMonthsCount = Array.from({ length: 12 }, (_, i) => i + 1)
-                    .filter(month => isDuesPaid(member, selectedYear, month))
-                    .length;
-                  
-                  return (
-                    <tr key={member}>
-                      <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white">
-                        {member}
-                      </td>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
-                        const isPaid = isDuesPaid(member, selectedYear, month);
-                        
-                        return (
-                          <td 
-                            key={`${member}-${month}`} 
-                            className={`px-3 py-3 text-center ${selectedMember === HOST_NAME ? 'cursor-pointer' : ''}`}
-                            onClick={() => selectedMember === HOST_NAME && toggleDuesPayment(member, selectedYear, month)}
-                          >
-                            <div 
-                              className={`mx-auto w-6 h-6 flex items-center justify-center rounded-full ${
-                                isPaid 
-                                  ? 'bg-green-100 text-green-800 border border-green-300' 
-                                  : 'bg-gray-100 text-gray-400 border border-gray-300'
-                              } ${selectedMember === HOST_NAME ? 'cursor-pointer' : ''}`}
-                              title={selectedMember === HOST_NAME ? (isPaid ? '납부 취소' : '납부 처리') : (isPaid ? '납부됨' : '미납')}
-                            >
-                              {isPaid ? '✓' : ''}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="px-3 py-3 text-center font-medium">
-                        {formatCurrency(paidMonthsCount * 20000)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="text-sm text-gray-500 mt-2">
-            {selectedMember === HOST_NAME ? (
-              <span><span className="font-medium">도움말:</span> 각 월의 박스를 클릭하여 납부 여부를 변경할 수 있습니다. (월 2만원)</span>
-            ) : (
-              <span>납부 여부는 호스트만 변경할 수 있습니다. (월 2만원)</span>
             )}
-          </div>
-        </div>
 
-        {/* 지출 내역 */}
-        <div className="mb-8">
-          <h3 className="text-lg font-medium mb-3">지출 내역</h3>
-          
-          {/* 지출 추가 폼 - 호스트만 사용 가능 */}
-          {selectedMember === HOST_NAME && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    날짜
-                  </label>
-                  <input
-                    type="date"
-                    value={expenseInput.date}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, date: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    내용
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="지출 내역"
-                    value={expenseInput.description}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    금액
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="금액"
-                    value={expenseInput.amount}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, amount: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+            {/* 계원별 1년치 일괄 완납 버튼 (호스트 전용) */}
+            {selectedMember === HOST_NAME && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium mb-2">계원별 1년치 일괄 완납 처리 (가로 처리)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {MEMBERS.map((member) => {
+                    // 해당 계원의 전체 납부 상태 확인
+                    const isAllPaid = Array.from({ length: 12 }, (_, i) => i + 1)
+                      .every(month => isDuesPaid(member, selectedYear, month));
+                    
+                    return (
+                      <button
+                        key={member}
+                        onClick={() => handleMemberYearlyPayment(member)}
+                        className={`px-3 py-1 rounded-md text-sm ${
+                          isAllPaid 
+                            ? 'bg-blue-100 text-blue-800 border border-blue-300' 
+                            : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                        }`}
+                        title={isAllPaid ? '모든 납부 취소' : '1년치 납부 처리'}
+                      >
+                        {member} {isAllPaid ? '✓' : ''}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              
-              <div className="flex justify-end">
-                <button
-                  onClick={addExpense}
-                  disabled={!expenseInput.description || !expenseInput.amount}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
-                >
-                  지출 추가
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {expenses.filter(e => new Date(e.date).getFullYear() === selectedYear).length === 0 ? (
-            <p className="text-gray-500 text-center py-4">아직 등록된 지출 내역이 없습니다.</p>
-          ) : (
+            )}
+            
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜</th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">내용</th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">금액</th>
-                    {selectedMember === HOST_NAME && (
-                      <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
-                    )}
+                    <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">
+                      이름
+                    </th>
+                    {MONTHS.map((month, index) => (
+                      <th key={month} scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {month}
+                      </th>
+                    ))}
+                    <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      납부합계
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {expenses
-                    .filter(expense => new Date(expense.date).getFullYear() === selectedYear)
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map(expense => (
-                      <tr key={expense.id}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(expense.date).toLocaleDateString('ko-KR')}
+                  {MEMBERS.map((member) => {
+                    // 해당 회원의 연간 납부 횟수
+                    const paidMonthsCount = Array.from({ length: 12 }, (_, i) => i + 1)
+                      .filter(month => isDuesPaid(member, selectedYear, month))
+                      .length;
+                    
+                    return (
+                      <tr key={member}>
+                        <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                          {member}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {expense.description}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
-                          {formatCurrency(expense.amount)}
-                        </td>
-                        {selectedMember === HOST_NAME && (
-                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => removeExpense(expense.id)}
-                              className="text-red-600 hover:text-red-900"
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
+                          const isPaid = isDuesPaid(member, selectedYear, month);
+                          
+                          return (
+                            <td 
+                              key={`${member}-${month}`} 
+                              className={`px-3 py-3 text-center ${selectedMember === HOST_NAME ? 'cursor-pointer' : ''}`}
+                              onClick={() => selectedMember === HOST_NAME && toggleDuesPayment(member, selectedYear, month)}
                             >
-                              삭제
-                            </button>
-                          </td>
-                        )}
+                              <div 
+                                className={`mx-auto w-6 h-6 flex items-center justify-center rounded-full ${
+                                  isPaid 
+                                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                                    : 'bg-gray-100 text-gray-400 border border-gray-300'
+                                } ${selectedMember === HOST_NAME ? 'cursor-pointer' : ''}`}
+                                title={selectedMember === HOST_NAME ? (isPaid ? '납부 취소' : '납부 처리') : (isPaid ? '납부됨' : '미납')}
+                              >
+                                {isPaid ? '✓' : ''}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-3 text-center font-medium">
+                          {formatCurrency(paidMonthsCount * 20000)}
+                        </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
-                <tfoot className="bg-gray-50">
-                  <tr>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900" colSpan={2}>
-                      총 지출
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-gray-900">
-                      {formatCurrency(calculateYearlyExpenses(selectedYear))}
-                    </td>
-                    {selectedMember === HOST_NAME && <td></td>}
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900" colSpan={2}>
-                      잔액 (납부된 계비 - 지출)
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-gray-900">
-                      {formatCurrency(calculateYearlyBalance(selectedYear))}
-                    </td>
-                    {selectedMember === HOST_NAME && <td></td>}
-                  </tr>
-                </tfoot>
               </table>
             </div>
+            <div className="text-sm text-gray-500 mt-2">
+              {selectedMember === HOST_NAME ? (
+                <span><span className="font-medium">도움말:</span> 각 월의 박스를 클릭하여 납부 여부를 변경할 수 있습니다. (월 2만원)</span>
+              ) : (
+                <span>납부 여부는 호스트만 변경할 수 있습니다. (월 2만원)</span>
+              )}
+            </div>
+
+          {/* 호스트 전용 납부 현황 저장 버튼 */}
+          {selectedMember === HOST_NAME && (
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={saveHostData}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium flex items-center shadow-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                납부 현황 저장
+              </button>
+            </div>
           )}
-        </div>
+          </div>
+          
+          {/* 지출 내역 */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-3">지출 내역</h3>
+            
+            {/* 지출 추가 폼 - 호스트만 사용 가능 */}
+            {selectedMember === HOST_NAME && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      날짜
+                    </label>
+                    <input
+                      type="date"
+                      value={expenseInput.date}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, date: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      내용
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="지출 내역"
+                      value={expenseInput.description}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, description: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      금액
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="금액"
+                      value={expenseInput.amount}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExpenseInput({...expenseInput, amount: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end">
+                  <button
+                    onClick={addExpense}
+                    disabled={!expenseInput.description || !expenseInput.amount}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    지출 추가
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {expenses.filter(e => new Date(e.date).getFullYear() === selectedYear).length === 0 ? (
+              <p className="text-gray-500 text-center py-4">아직 등록된 지출 내역이 없습니다.</p>
+            ) : (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜</th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">내용</th>
+                      <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">금액</th>
+                      {selectedMember === HOST_NAME && (
+                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {expenses
+                      .filter(expense => new Date(expense.date).getFullYear() === selectedYear)
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map(expense => (
+                        <tr key={expense.id}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(expense.date).toLocaleDateString('ko-KR')}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {expense.description}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
+                            {formatCurrency(expense.amount)}
+                          </td>
+                          {selectedMember === HOST_NAME && (
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => removeExpense(expense.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                삭제
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900" colSpan={2}>
+                        총 지출
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-gray-900">
+                        {formatCurrency(calculateYearlyExpenses(selectedYear))}
+                      </td>
+                      {selectedMember === HOST_NAME && <td></td>}
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900" colSpan={2}>
+                        잔액 (납부된 계비 - 지출)
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-gray-900">
+                        {formatCurrency(calculateYearlyBalance(selectedYear))}
+                      </td>
+                      {selectedMember === HOST_NAME && <td></td>}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+          {/* 호스트 전용 지출 내역 저장 버튼 */}
+          {selectedMember === HOST_NAME && (
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={saveHostData}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium flex items-center shadow-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                지출 내역 저장
+              </button>
+          </div>
+          )}
+      </div>
       </section>
       
       {/* 계비 요약 정보를 항상 보여주는 고정 바 */}
@@ -1992,15 +2064,15 @@ export default function Home() {
       
       {/* 지도 모달 */}
       {mapModalOpen && (
-        <MapModal 
-          isOpen={mapModalOpen}
-          onClose={() => setMapModalOpen(false)}
-          onSelect={(location) => {
-            setSelectedLocation(location);
-            setMapModalOpen(false);
-          }}
-          mapType={currentMapType}
-        />
+      <MapModal 
+        isOpen={mapModalOpen}
+        onClose={() => setMapModalOpen(false)}
+        onSelect={(location) => {
+          setSelectedLocation(location);
+          setMapModalOpen(false);
+        }}
+        mapType={currentMapType}
+      />
       )}
 
       {/* 관리자(호스트) 전용 기능 */}

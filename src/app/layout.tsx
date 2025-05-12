@@ -1,9 +1,7 @@
-'use client';
-
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { useEffect } from "react";
-import { setupPingMechanism } from "@/lib/supabase";
+import ClientLayout from "./client-layout";
+import { metadata } from "./metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,24 +18,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Supabase 핑 메커니즘 설정
-  useEffect(() => {
-    // 14일마다 핑 실행 (약 2주)
-    const cleanupPing = setupPingMechanism(14);
-    
-    // 컴포넌트 언마운트 시 핑 메커니즘 정리
-    return () => {
-      cleanupPing();
-    };
-  }, []);
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
 }
+
+export { metadata };
