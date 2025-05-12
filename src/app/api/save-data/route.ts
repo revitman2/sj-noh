@@ -22,9 +22,9 @@ export async function POST(request: Request) {
       _lastUpdated: new Date().toISOString()
     };
     
-    // Supabase에 데이터 저장
+    // Supabase에 데이터 저장 (테이블 이름을 meeting_data로 변경)
     const { error } = await supabase
-      .from('storage')
+      .from('meeting_data')
       .upsert({ id, data: dataWithTimestamp }, { onConflict: 'id' });
     
     if (error) {
