@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { MEMBERS, HOST_NAME } from '@/constants/members';
 import MapModal from '@/components/MapModal';
-import { saveToLocal, loadFromLocal, saveToServer, loadFromServer } from '@/lib/storage';
+import { saveToServer, loadFromServer } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import KakaoShareButton from '@/components/KakaoShare';
 import { getTodaysBirthdayMembers, getUpcomingBirthdayMembers, BirthdayMember } from '@/constants/birthdays';
@@ -118,21 +118,29 @@ export default function Home() {
           [today]: true
         }));
         
-        // 로컬 스토리지에 알림 내역 저장
-        saveToLocal('birthdayNotified', {
-          ...birthdayNotified,
-          [today]: true
-        });
+        // 서버에 알림 내역 저장
+        saveToServer({ 
+          ...birthdayNotified, 
+          [today]: true 
+        }, 'birthdayNotified');
       }
     }
   }, [selectedMember, birthdayNotified]);
   
   // 페이지 로드 시 생일 알림 내역 불러오기
   useEffect(() => {
-    const notifiedData = loadFromLocal('birthdayNotified');
-    if (notifiedData) {
-      setBirthdayNotified(notifiedData as { [key: string]: boolean });
+    async function loadBirthdayNotified() {
+      try {
+        const notifiedData = await loadFromServer('birthdayNotified');
+        if (notifiedData) {
+          setBirthdayNotified(notifiedData as { [key: string]: boolean });
+        }
+      } catch (err) {
+        console.error('생일 알림 내역 로드 실패:', err);
+      }
     }
+    
+    loadBirthdayNotified();
   }, []);
 
   // 호스트 여부 확인 함수
@@ -475,20 +483,22 @@ export default function Home() {
     const timeOption = timeOptions.find(t => t.id === timeId);
     
     if (dateOption && timeOption) {
-      setConfirmedDateOption({
+      const confirmedData = {
         dateId,
         timeId,
         date: dateOption.date,
         time: timeOption.time
-      });
+      };
       
-      // 확정 정보 저장
-      saveToLocal('confirmedDate', {
-        dateId,
-        timeId,
-        date: dateOption.date,
-        time: timeOption.time
-      });
+      setConfirmedDateOption(confirmedData);
+      
+      // 서버에 확정 정보 저장
+      saveToServer(confirmedData, 'confirmedDate')
+        .then(success => {
+          if (!success) {
+            alert('확정 정보 저장에 실패했습니다. 다시 시도해주세요.');
+          }
+        });
     }
   };
   
@@ -522,7 +532,7 @@ export default function Home() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 서버 데이터를 먼저 로드 (최신 데이터)
+        // 서버에서만 데이터 로드
         const serverData = await loadFromServer() as any;
         
         if (serverData) {
@@ -533,46 +543,27 @@ export default function Home() {
           setDuesPayments(serverData.duesPayments || []);
           setExpenses(serverData.expenses || []);
           setSelectedLocation(serverData.selectedLocation || null);
-          
-          // 서버 데이터를 로컬에도 저장 (백업)
-          saveToLocal('meetingData', serverData);
         } else {
-          // 서버 데이터가 없을 경우에만 로컬 데이터 사용
-          console.log('서버 데이터가 없어 로컬 데이터를 불러옵니다.');
-          const localData = loadFromLocal() as any;
-          if (localData) {
-            setDateOptions(localData.dateOptions || []);
-            setTimeOptions(localData.timeOptions || []);
-            setVotes(localData.votes || {});
-            setDuesPayments(localData.duesPayments || []);
-            setExpenses(localData.expenses || []);
-            setSelectedLocation(localData.selectedLocation || null);
-          }
+          console.log('서버에 데이터가 없습니다. 초기 상태로 시작합니다.');
         }
         
         // 저장된 확정 날짜 불러오기
-        const savedConfirmedDate = loadFromLocal('confirmedDate');
-        if (savedConfirmedDate) {
-          setConfirmedDateOption(savedConfirmedDate as { 
-            dateId: string; 
-            timeId: string; 
-            date: string; 
-            time: string; 
-          });
+        try {
+          const confirmedData = await loadFromServer('confirmedDate') as any;
+          if (confirmedData) {
+            setConfirmedDateOption(confirmedData as { 
+              dateId: string; 
+              timeId: string; 
+              date: string; 
+              time: string; 
+            });
+          }
+        } catch (e) {
+          console.error('확정 날짜 로드 실패:', e);
         }
       } catch (error) {
         console.error('Failed to load data:', error);
-        
-        // 서버 로드 실패 시 로컬 데이터 사용
-        const localData = loadFromLocal() as any;
-        if (localData) {
-          setDateOptions(localData.dateOptions || []);
-          setTimeOptions(localData.timeOptions || []);
-          setVotes(localData.votes || {});
-          setDuesPayments(localData.duesPayments || []);
-          setExpenses(localData.expenses || []);
-          setSelectedLocation(localData.selectedLocation || null);
-        }
+        alert('서버에서 데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
       }
     }
     
@@ -593,16 +584,13 @@ export default function Home() {
       selectedLocation
     };
     
-    // 로컬 스토리지에 저장 (항상, 백업용)
-    saveToLocal('meetingData', data);
-    
-    // 서버에 즉시 저장 (타이머 제거하고 바로 저장)
+    // 서버에만 즉시 저장
     saveToServer(data)
       .then(success => {
         if (success) {
           console.log('서버에 데이터가 성공적으로 저장되었습니다.');
         } else {
-          console.warn('서버 저장에 실패했습니다. 로컬 백업만 완료되었습니다.');
+          console.warn('서버 저장에 실패했습니다.');
         }
       })
       .catch(e => console.error('서버 저장 에러:', e));
@@ -622,13 +610,10 @@ export default function Home() {
         selectedLocation
       };
       
-      // 로컬 저장 (동기적)
-      saveToLocal('meetingData', data);
-      
       // 서버 저장 시도 - sendBeacon 사용 (비동기지만 페이지 닫혀도 실행됨)
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify({
-          id: 'life-meeting',
+          id: 'life-meeting-v2',
           data
         })], { type: 'application/json' });
         
@@ -645,6 +630,10 @@ export default function Home() {
 
   // 페이지 초기화
   const resetState = () => {
+    if (!confirm('정말 모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+    
     // 데이터 초기화
     const resetData = {
       selectedLocation: null,
@@ -664,16 +653,15 @@ export default function Home() {
     setDuesPayments([]);
     setExpenses([]);
     
-    // 저장
-    saveToLocal('meetingData', resetData);
+    // 서버에만 저장
     saveToServer(resetData)
       .then(success => {
-        if (!success) {
-          console.warn('서버 초기화 실패. 다시 시도해주세요.');
+        if (success) {
+          alert('모든 데이터가 초기화되었습니다.');
+        } else {
+          alert('서버 초기화 실패. 다시 시도해주세요.');
         }
       });
-    
-    alert('모든 데이터가 초기화되었습니다.');
   };
 
   // 디버깅 정보 저장
@@ -688,7 +676,6 @@ export default function Home() {
       _saveTime: new Date().toISOString()
     };
     
-    saveToLocal('meetingData', data);
     saveToServer(data)
       .then(success => alert(`저장 ${success ? '성공' : '실패'}`))
       .catch(e => alert(`저장 에러: ${e.message}`));
@@ -698,23 +685,13 @@ export default function Home() {
   const checkDataStatus = async () => {
     try {
       // 현재 서버 데이터 가져오기
-      const serverData = await loadFromServer('life-meeting') as any;
-      
-      // 현재 로컬 데이터 가져오기
-      const localData = loadFromLocal('meetingData') as any;
-      
-      // 데이터 비교
-      const serverTimestamp = serverData?._lastUpdated || 'None';
-      const localTimestamp = localData?._saveTime || 'None';
+      const serverData = await loadFromServer() as any;
       
       const status = `
 데이터 상태:
 ------------------------------
 서버 데이터: ${serverData ? '있음' : '없음'}
-서버 마지막 업데이트: ${serverTimestamp}
-------------------------------
-로컬 데이터: ${localData ? '있음' : '없음'}
-로컬 마지막 저장: ${localTimestamp}
+서버 마지막 업데이트: ${serverData?._lastUpdated || 'None'}
 ------------------------------
 정보: ${Object.keys(votes).length}명 투표 / ${duesPayments.length}명 회비 / ${expenses.length}개 지출
       `;
@@ -768,6 +745,27 @@ export default function Home() {
 
   // 각 섹션에 ID 추가
   useEffect(() => {
+    // 이전 버전의 로컬 스토리지 데이터를 강제로 초기화
+    try {
+      const oldLocalStorageKeys = [
+        'meetingData',
+        'confirmedDate',
+        'birthdayNotified'
+      ];
+      
+      // 기존 로컬 스토리지 키들을 모두 삭제
+      oldLocalStorageKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          console.log(`이전 버전의 로컬 스토리지 데이터 삭제: ${key}`);
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log('로컬 스토리지 정리 완료. 이제 서버 데이터만 사용합니다.');
+    } catch (error) {
+      console.error('로컬 스토리지 정리 중 오류:', error);
+    }
+    
     // URL 파라미터 확인
     const handleURLParams = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1059,9 +1057,15 @@ export default function Home() {
                     expenses,
                     _resetTime: new Date().toISOString()
                   };
-                  saveToLocal(data);
-                  
-                  alert('모임 정보가 초기화되었습니다.');
+                  saveToServer(data)
+                    .then(success => {
+                      if (success) {
+                        alert('모임 정보가 초기화되었습니다.');
+                      } else {
+                        alert('모임 정보 초기화에 실패했습니다. 다시 시도해주세요.');
+                      }
+                    })
+                    .catch(e => alert(`초기화 오류: ${e.message}`));
                 }
               }}
               className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium flex items-center"
@@ -1454,7 +1458,7 @@ export default function Home() {
             <div className="mt-4 flex justify-center">
               <button
                 onClick={() => {
-                  // 현재 상태를 로컬 스토리지에 저장
+                  // 현재 상태를 서버에 저장
                   const data = {
                     selectedLocation,
                     dateOptions,
@@ -1465,15 +1469,23 @@ export default function Home() {
                     _saveTime: new Date().toISOString()
                   };
                   
-                  saveToLocal(data);
-                  
-                  // 저장 성공 표시
-                  setShowSaveSuccess(true);
-                  
-                  // 3초 후 메시지 숨기기
-                  setTimeout(() => {
-                    setShowSaveSuccess(false);
-                  }, 3000);
+                  saveToServer(data)
+                    .then(success => {
+                      if (success) {
+                        // 저장 성공 표시
+                        setShowSaveSuccess(true);
+                        
+                        // 3초 후 메시지 숨기기
+                        setTimeout(() => {
+                          setShowSaveSuccess(false);
+                        }, 3000);
+                      } else {
+                        alert('저장에 실패했습니다. 다시 시도해주세요.');
+                      }
+                    })
+                    .catch(err => {
+                      alert(`저장 중 오류 발생: ${err.message}`);
+                    });
                 }}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center shadow-sm"
               >
@@ -2009,6 +2021,26 @@ export default function Home() {
             <div className="p-2">
               <button onClick={checkDataStatus} className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
                 데이터 상태 확인
+              </button>
+            </div>
+            <div className="p-2 md:col-span-3">
+              <button 
+                onClick={() => {
+                  if (confirm('정말 모든 로컬 데이터를 삭제하고 페이지를 새로고침하시겠습니까?\n(다른 계원들에게도 이 작업을 안내하시면 좋습니다)')) {
+                    try {
+                      // 모든 로컬 스토리지 데이터 비우기
+                      localStorage.clear();
+                      alert('로컬 스토리지가 초기화되었습니다. 페이지를 새로고침합니다.');
+                      // 페이지 새로고침
+                      window.location.reload();
+                    } catch (e: any) {
+                      alert(`로컬 스토리지 초기화 오류: ${e.message}`);
+                    }
+                  }
+                }} 
+                className="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+              >
+                ⚠️ 모든 로컬 데이터 초기화 (데이터 불일치 해결용)
               </button>
             </div>
           </div>

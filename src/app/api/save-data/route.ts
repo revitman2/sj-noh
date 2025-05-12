@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     // request에서 JSON 데이터 추출
     const body = await request.json();
-    const { id = 'life-meeting', data } = body;
+    const { id = 'life-meeting-v2', data } = body;
     
     if (!data) {
       return NextResponse.json({ success: false, error: 'No data provided' }, { status: 400 });
