@@ -47,6 +47,7 @@ export async function loadFromServer(id = 'life-meeting') {
   try {
     console.log(`서버에서 데이터 불러오기 시도 - ID: ${id}`);
     
+    // Supabase 쿼리 직접 실행
     const { data, error } = await supabase
       .from('meeting_data')
       .select('data')
@@ -64,7 +65,7 @@ export async function loadFromServer(id = 'life-meeting') {
       return null;
     }
     
-    console.log('서버에서 데이터 불러오기 성공:', data?.data);
+    console.log('서버에서 데이터 불러오기 성공:', id);
     return data?.data;
   } catch (error) {
     console.error('서버 불러오기 실패:', error);
